@@ -44,6 +44,16 @@ class StorageService {
     return _prefs?.getBool(_keyTheme) ?? false;
   }
 
+  static const String _keyUseRomanClock = 'use_roman_clock';
+
+  static Future<void> setUseRomanClock(bool value) async {
+    await _prefs?.setBool(_keyUseRomanClock, value);
+  }
+
+  static bool getUseRomanClock() {
+    return _prefs?.getBool(_keyUseRomanClock) ?? false;
+  }
+
   static Future<void> saveTodayAttendance(String date, String jsonString) async {
     await _prefs?.setString('today_attendance_$date', jsonString);
   }

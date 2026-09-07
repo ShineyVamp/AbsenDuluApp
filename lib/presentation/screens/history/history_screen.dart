@@ -3,6 +3,7 @@ import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/core/utils/date_formatter.dart';
 import 'package:absendulu/data/models/attendance_model.dart';
 import 'package:absendulu/presentation/providers/history_provider.dart';
+import 'package:absendulu/presentation/providers/theme_provider.dart';
 import 'package:absendulu/presentation/screens/history/history_detail_sheet.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
@@ -32,6 +33,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final history = Provider.of<HistoryProvider>(context);
+    final theme = Provider.of<ThemeProvider>(context);
 
     final filteredList = history.historyList.where((item) {
       if (_selectedFilter == 'Semua') return true;
@@ -69,11 +71,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       vertical: 8,
                     ),
                     onTap: () async {
+                      final now = DateTime.now();
+                      final initial = history.currentMonth.isAfter(now)
+                          ? now
+                          : history.currentMonth;
                       final selected = await showDatePicker(
                         context: context,
-                        initialDate: history.currentMonth,
+                        initialDate: initial,
                         firstDate: DateTime(2024),
-                        lastDate: DateTime(2030),
+                        lastDate: now,
                       );
                       if (selected != null) {
                         history.changeMonth(selected);
@@ -292,7 +298,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Masuk: ${item.effectiveCheckInTime}',
+                                            'Masuk: ${DateFormatter.formatTimeString(item.effectiveCheckInTime, isRoman: theme.isRomanClock)}',
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,
@@ -314,7 +320,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Pulang: ${item.effectiveCheckOutTime}',
+                                            'Pulang: ${DateFormatter.formatTimeString(item.effectiveCheckOutTime, isRoman: theme.isRomanClock)}',
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,

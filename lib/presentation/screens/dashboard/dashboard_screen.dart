@@ -12,12 +12,15 @@ import 'package:absendulu/presentation/screens/attendance/leave_request_dialog.d
 import 'package:absendulu/presentation/screens/dashboard/attendance_stats_detail_screen.dart';
 import 'package:absendulu/presentation/widgets/custom_snackbar.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
+import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
+
+  String _toRoman(int number) => DateFormatter.toRoman(number);
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +38,13 @@ class DashboardScreen extends StatelessWidget {
     final userName = auth.user?.name ?? 'Siswa PPKD';
     final stats = attendance.stats;
     final today = attendance.todayAttendance;
+    final bool isTodayLoading =
+        attendance.isLoading || (attendance.isTodayLoading && today == null);
+    final bool isStatsLoading =
+        attendance.isLoading ||
+        attendance.isStatsLoading ||
+        (historyProv.isLoading && historyProv.historyList.isEmpty);
+    final bool isDashboardLoading = isTodayLoading || isStatsLoading;
 
     final totalTerlambat = historyProv.historyList
         .where(
@@ -91,7 +101,11 @@ class DashboardScreen extends StatelessWidget {
     String subButtonText;
     bool isCheckInAction = true;
 
-    if (isIzin) {
+    if (isTodayLoading) {
+      buttonColor = const Color(0xFF2C54D8);
+      mainButtonText = 'Memuat';
+      subButtonText = 'MEMERIKSA DATA';
+    } else if (isIzin) {
       buttonColor = AppColors.warning;
       mainButtonText = 'Izin';
       subButtonText = 'SEDANG IZIN';
@@ -118,10 +132,16 @@ class DashboardScreen extends StatelessWidget {
     }
 
     final String checkInTimeDisplay = today != null && today.isCheckedIn
-        ? today.effectiveCheckInTime
+        ? DateFormatter.formatTimeString(
+            today.effectiveCheckInTime,
+            isRoman: theme.isRomanClock,
+          )
         : '--:--';
     final String checkOutTimeDisplay = today != null && today.isCheckedOut
-        ? today.effectiveCheckOutTime
+        ? DateFormatter.formatTimeString(
+            today.effectiveCheckOutTime,
+            isRoman: theme.isRomanClock,
+          )
         : '--:--';
 
     final String checkInStatusText;
@@ -163,13 +183,22 @@ class DashboardScreen extends StatelessWidget {
     }
 
     void handleAttendanceTap() async {
+      if (isTodayLoading) return;
       await context.push(GpsVerificationScreen(isCheckIn: isCheckInAction));
       await attendance.loadTodayAttendance();
       await attendance.loadStats();
     }
 
-    final hourMinuteStr = DateFormat('HH:mm').format(attendance.currentTime);
-    final secondStr = DateFormat('ss').format(attendance.currentTime);
+    final String hourMinuteStr;
+    final String secondStr;
+    if (theme.isRomanClock) {
+      hourMinuteStr =
+          '${_toRoman(attendance.currentTime.hour)}:${_toRoman(attendance.currentTime.minute)}';
+      secondStr = _toRoman(attendance.currentTime.second);
+    } else {
+      hourMinuteStr = DateFormat('HH:mm').format(attendance.currentTime);
+      secondStr = DateFormat('ss').format(attendance.currentTime);
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -371,7 +400,7 @@ class DashboardScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Batas absen masuk pukul 08:00 WIB. Segera lakukan presensi di area PPKD.',
+                                    'Batas absen masuk pukul ${DateFormatter.formatTimeString('08:00', isRoman: theme.isRomanClock)} WIB. Segera lakukan presensi di area PPKD.',
                                     style: TextStyle(
                                       fontSize: 11 * fontScale,
                                       color: isDark
@@ -470,47 +499,55 @@ class DashboardScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                hourMinuteStr,
-                                style: TextStyle(
-                                  fontSize: 38 * fontScale,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.2,
-                                  color: isDark
-                                      ? AppColors.textHighDark
-                                      : const Color(0xFF0F172A),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  hourMinuteStr,
+                                  style: TextStyle(
+                                    fontSize: (theme.isRomanClock ? 30 : 38) *
+                                        fontScale,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing:
+                                        theme.isRomanClock ? 0.8 : 1.2,
+                                    color: isDark
+                                        ? AppColors.textHighDark
+                                        : const Color(0xFF0F172A),
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                ':$secondStr',
-                                style: TextStyle(
-                                  fontSize: 38 * fontScale,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.2,
-                                  color: const Color(0xFF2C54D8),
+                                Text(
+                                  ':$secondStr',
+                                  style: TextStyle(
+                                    fontSize: (theme.isRomanClock ? 30 : 38) *
+                                        fontScale,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing:
+                                        theme.isRomanClock ? 0.8 : 1.2,
+                                    color: const Color(0xFF2C54D8),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'WIB',
-                                style: TextStyle(
-                                  fontSize: 38 * fontScale,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? AppColors.textMediumDark
-                                      : const Color(0xFF64748B),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'WIB',
+                                  style: TextStyle(
+                                    fontSize: (theme.isRomanClock ? 26 : 38) *
+                                        fontScale,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? AppColors.textMediumDark
+                                        : const Color(0xFF64748B),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Jadwal Masuk: 08:00 WIB',
+                            'Jadwal Masuk: ${DateFormatter.formatTimeString('08:00', isRoman: theme.isRomanClock)} WIB',
                             style: TextStyle(
                               fontSize: 12 * fontScale,
                               fontWeight: FontWeight.w500,
@@ -571,26 +608,52 @@ class DashboardScreen extends StatelessWidget {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(
-                                        mainButtonText,
-                                        style: TextStyle(
-                                          fontSize: 24 * fontScale,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        subButtonText,
-                                        style: TextStyle(
-                                          fontSize: 10 * fontScale,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.85,
+                                      if (isTodayLoading) ...[
+                                        const SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
                                           ),
-                                          letterSpacing: 1.1,
                                         ),
-                                      ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'MEMERIKSA...',
+                                          style: TextStyle(
+                                            fontSize: 10 * fontScale,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.85,
+                                            ),
+                                            letterSpacing: 1.1,
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        Text(
+                                          mainButtonText,
+                                          style: TextStyle(
+                                            fontSize: 24 * fontScale,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          subButtonText,
+                                          style: TextStyle(
+                                            fontSize: 10 * fontScale,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.85,
+                                            ),
+                                            letterSpacing: 1.1,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -635,25 +698,39 @@ class DashboardScreen extends StatelessWidget {
                                         ],
                                       ),
                                       const SizedBox(height: 10),
-                                      Text(
-                                        checkInTimeDisplay,
-                                        style: TextStyle(
-                                          fontSize: 18 * fontScale,
-                                          fontWeight: FontWeight.w800,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
+                                      if (isTodayLoading) ...[
+                                        const NeumorphicSkeleton(
+                                          width: 65,
+                                          height: 20,
+                                          borderRadius: 5,
                                         ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        checkInStatusText,
-                                        style: TextStyle(
-                                          fontSize: 11 * fontScale,
-                                          fontWeight: FontWeight.w600,
-                                          color: checkInStatusColor,
+                                        const SizedBox(height: 5),
+                                        const NeumorphicSkeleton(
+                                          width: 75,
+                                          height: 12,
+                                          borderRadius: 4,
                                         ),
-                                      ),
+                                      ] else ...[
+                                        Text(
+                                          checkInTimeDisplay,
+                                          style: TextStyle(
+                                            fontSize: 18 * fontScale,
+                                            fontWeight: FontWeight.w800,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          checkInStatusText,
+                                          style: TextStyle(
+                                            fontSize: 11 * fontScale,
+                                            fontWeight: FontWeight.w600,
+                                            color: checkInStatusColor,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -694,25 +771,39 @@ class DashboardScreen extends StatelessWidget {
                                         ],
                                       ),
                                       const SizedBox(height: 10),
-                                      Text(
-                                        checkOutTimeDisplay,
-                                        style: TextStyle(
-                                          fontSize: 18 * fontScale,
-                                          fontWeight: FontWeight.w800,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
+                                      if (isTodayLoading) ...[
+                                        const NeumorphicSkeleton(
+                                          width: 65,
+                                          height: 20,
+                                          borderRadius: 5,
                                         ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        checkOutStatusText,
-                                        style: TextStyle(
-                                          fontSize: 11 * fontScale,
-                                          fontWeight: FontWeight.w600,
-                                          color: checkOutStatusColor,
+                                        const SizedBox(height: 5),
+                                        const NeumorphicSkeleton(
+                                          width: 75,
+                                          height: 12,
+                                          borderRadius: 4,
                                         ),
-                                      ),
+                                      ] else ...[
+                                        Text(
+                                          checkOutTimeDisplay,
+                                          style: TextStyle(
+                                            fontSize: 18 * fontScale,
+                                            fontWeight: FontWeight.w800,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          checkOutStatusText,
+                                          style: TextStyle(
+                                            fontSize: 11 * fontScale,
+                                            fontWeight: FontWeight.w600,
+                                            color: checkOutStatusColor,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -725,62 +816,66 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     NeumorphicCard(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      borderRadius: 16,
+                      borderRadius: 22,
+                      padding: const EdgeInsets.all(18),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => const LeaveRequestDialog(),
+                        );
+                      },
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.info_outline_rounded,
-                                size: 20,
-                                color: AppColors.warning,
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Berhalangan hadir hari ini?',
-                                    style: TextStyle(
-                                      fontSize: 13 * fontScale,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? AppColors.textHighDark
-                                          : AppColors.textHigh,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Ajukan izin',
-                                    style: TextStyle(
-                                      fontSize: 11 * fontScale,
-                                      color: isDark
-                                          ? AppColors.textMediumDark
-                                          : AppColors.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              color: Color(0xFFF59E0B),
+                            ),
+                            child: const Icon(
+                              Icons.event_busy_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
                           ),
-                          TextButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => const LeaveRequestDialog(),
-                              );
-                            },
-                            child: Text(
-                              'Izin',
-                              style: TextStyle(
-                                fontSize: 13 * fontScale,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.warning,
-                              ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pengajuan Izin & Sakit',
+                                  style: TextStyle(
+                                    fontSize: 15 * fontScale,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? AppColors.textHighDark
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Berhalangan hadir? Ajukan permohonan resmi di sini',
+                                  style: TextStyle(
+                                    fontSize: 11.5 * fontScale,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark
+                                        ? AppColors.textMediumDark
+                                        : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                              color: Color(0xFFF59E0B),
                             ),
                           ),
                         ],
@@ -870,16 +965,28 @@ class DashboardScreen extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                        '$totalHadir',
-                                        style: TextStyle(
-                                          fontSize: 22 * fontScale,
-                                          fontWeight: FontWeight.w900,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
+                                      if (isDashboardLoading)
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          child: NeumorphicSkeleton(
+                                            width: 35,
+                                            height: 22,
+                                            borderRadius: 6,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          '$totalHadir',
+                                          style: TextStyle(
+                                            fontSize: 22 * fontScale,
+                                            fontWeight: FontWeight.w900,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : const Color(0xFF0F172A),
+                                          ),
                                         ),
-                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         '$totalHadir Hari',
@@ -917,16 +1024,28 @@ class DashboardScreen extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                        '$totalTerlambat',
-                                        style: TextStyle(
-                                          fontSize: 22 * fontScale,
-                                          fontWeight: FontWeight.w900,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
+                                      if (isDashboardLoading)
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          child: NeumorphicSkeleton(
+                                            width: 35,
+                                            height: 22,
+                                            borderRadius: 6,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          '$totalTerlambat',
+                                          style: TextStyle(
+                                            fontSize: 22 * fontScale,
+                                            fontWeight: FontWeight.w900,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : const Color(0xFF0F172A),
+                                          ),
                                         ),
-                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         '$totalTerlambat Hari',
@@ -964,16 +1083,28 @@ class DashboardScreen extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                        '$totalIzin',
-                                        style: TextStyle(
-                                          fontSize: 22 * fontScale,
-                                          fontWeight: FontWeight.w900,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
+                                      if (isDashboardLoading)
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          child: NeumorphicSkeleton(
+                                            width: 35,
+                                            height: 22,
+                                            borderRadius: 6,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          '$totalIzin',
+                                          style: TextStyle(
+                                            fontSize: 22 * fontScale,
+                                            fontWeight: FontWeight.w900,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : const Color(0xFF0F172A),
+                                          ),
                                         ),
-                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         '$totalIzin Hari',
@@ -1017,16 +1148,28 @@ class DashboardScreen extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                        '${stats.totalMasuk}',
-                                        style: TextStyle(
-                                          fontSize: 22 * fontScale,
-                                          fontWeight: FontWeight.w900,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
+                                      if (isDashboardLoading)
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          child: NeumorphicSkeleton(
+                                            width: 44,
+                                            height: 22,
+                                            borderRadius: 6,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          '${stats.totalMasuk}',
+                                          style: TextStyle(
+                                            fontSize: 22 * fontScale,
+                                            fontWeight: FontWeight.w900,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : const Color(0xFF0F172A),
+                                          ),
                                         ),
-                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         'Total Sesi Hadir',
@@ -1066,16 +1209,28 @@ class DashboardScreen extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text(
-                                        '${stats.attendancePercentage.toStringAsFixed(1)}%',
-                                        style: TextStyle(
-                                          fontSize: 22 * fontScale,
-                                          fontWeight: FontWeight.w900,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
+                                      if (isDashboardLoading)
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          child: NeumorphicSkeleton(
+                                            width: 55,
+                                            height: 22,
+                                            borderRadius: 6,
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          '${stats.attendancePercentage.toStringAsFixed(1)}%',
+                                          style: TextStyle(
+                                            fontSize: 22 * fontScale,
+                                            fontWeight: FontWeight.w900,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : const Color(0xFF0F172A),
+                                          ),
                                         ),
-                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         'Kehadiran',

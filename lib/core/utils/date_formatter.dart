@@ -47,8 +47,78 @@ class DateFormatter {
     return DateFormat('HH:mm').format(date);
   }
 
-  static String formatDisplayTime(DateTime date) {
-    return '${DateFormat('HH:mm:ss').format(date)} WIB';
+  static String toRoman(int number) {
+    if (number <= 0) return 'N';
+    const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const symbols = [
+      'M',
+      'CM',
+      'D',
+      'CD',
+      'C',
+      'XC',
+      'L',
+      'XL',
+      'X',
+      'IX',
+      'V',
+      'IV',
+      'I',
+    ];
+    final buffer = StringBuffer();
+    var num = number;
+    for (var i = 0; i < values.length; i++) {
+      while (num >= values[i]) {
+        buffer.write(symbols[i]);
+        num -= values[i];
+      }
+    }
+    return buffer.toString();
+  }
+
+  static String formatTimeString(String? timeStr, {bool isRoman = false}) {
+    if (timeStr == null ||
+        timeStr.trim().isEmpty ||
+        timeStr == '--:--' ||
+        timeStr == '-') {
+      return timeStr ?? '--:--';
+    }
+    if (!isRoman) return timeStr;
+    final parts = timeStr.trim().split(':');
+    if (parts.isEmpty) return timeStr;
+    final romanParts = <String>[];
+    for (final part in parts) {
+      final parsed = int.tryParse(part);
+      if (parsed != null) {
+        romanParts.add(toRoman(parsed));
+      } else {
+        romanParts.add(part);
+      }
+    }
+    return romanParts.join(':');
+  }
+
+  static String formatTime(
+    DateTime date, {
+    bool isRoman = false,
+    bool includeSeconds = false,
+  }) {
+    if (!isRoman) {
+      return includeSeconds
+          ? DateFormat('HH:mm:ss').format(date)
+          : DateFormat('HH:mm').format(date);
+    }
+    final h = toRoman(date.hour);
+    final m = toRoman(date.minute);
+    if (includeSeconds) {
+      final s = toRoman(date.second);
+      return '$h:$m:$s';
+    }
+    return '$h:$m';
+  }
+
+  static String formatDisplayTime(DateTime date, {bool isRoman = false}) {
+    return '${formatTime(date, isRoman: isRoman, includeSeconds: true)} WIB';
   }
 
   static String formatShortDate(DateTime date) {

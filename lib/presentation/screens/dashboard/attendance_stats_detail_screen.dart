@@ -3,11 +3,31 @@ import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/core/utils/date_formatter.dart';
 import 'package:absendulu/presentation/providers/attendance_provider.dart';
 import 'package:absendulu/presentation/providers/history_provider.dart';
+import 'package:absendulu/presentation/providers/theme_provider.dart';
+import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class AttendanceStatsDetailScreen extends StatelessWidget {
+class AttendanceStatsDetailScreen extends StatefulWidget {
   const AttendanceStatsDetailScreen({super.key});
+
+  @override
+  State<AttendanceStatsDetailScreen> createState() =>
+      _AttendanceStatsDetailScreenState();
+}
+
+class _AttendanceStatsDetailScreenState
+    extends State<AttendanceStatsDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final historyProv = Provider.of<HistoryProvider>(context, listen: false);
+      if (historyProv.historyList.isEmpty && !historyProv.isLoading) {
+        historyProv.loadHistory();
+      }
+    });
+  }
 
   int? _timeToMinutes(String timeStr) {
     if (timeStr == '--:--' || timeStr.isEmpty) return null;
@@ -22,10 +42,13 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
     return null;
   }
 
-  String _minutesToTimeString(int totalMinutes) {
-    final h = (totalMinutes ~/ 60).toString().padLeft(2, '0');
-    final m = (totalMinutes % 60).toString().padLeft(2, '0');
-    return '$h:$m';
+  String _minutesToTimeString(int totalMinutes, {bool isRoman = false}) {
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    if (isRoman) {
+      return '${DateFormatter.toRoman(h)}:${DateFormatter.toRoman(m)}';
+    }
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
   }
 
   DateTime? _parseDate(String? dateStr) {
@@ -64,6 +87,8 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final attendance = Provider.of<AttendanceProvider>(context);
     final historyProv = Provider.of<HistoryProvider>(context);
+    final theme = Provider.of<ThemeProvider>(context);
+    final isRoman = theme.isRomanClock;
 
     final screenWidth = MediaQuery.sizeOf(context).width;
     final double fontScale = screenWidth < 360
@@ -92,7 +117,7 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
     final totalAttended = totalHadir + totalTerlambat;
     final double onTimePercentage = totalAttended > 0
         ? (totalHadir / totalAttended) * 100
-        : (stats.totalAbsen > 0 ? stats.attendancePercentage : 100.0);
+        : 0.0;
 
     final validCheckInMinutes = <int>[];
     final validCheckOutMinutes = <int>[];
@@ -143,18 +168,20 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
           (validCheckInMinutes.reduce((a, b) => a + b) /
                   validCheckInMinutes.length)
               .round();
-      avgCheckInStr = _minutesToTimeString(avgMin);
+      avgCheckInStr = _minutesToTimeString(avgMin, isRoman: isRoman);
       final diff = 480 - avgMin;
       if (diff > 0) {
         avgCheckInDiff = '$diff mnt lebih awal';
       } else if (diff < 0) {
         avgCheckInDiff = '${diff.abs()} mnt terlambat';
       } else {
-        avgCheckInDiff = 'Tepat 08:00 WIB';
+        avgCheckInDiff =
+            'Tepat ${DateFormatter.formatTimeString('08:00', isRoman: isRoman)} WIB';
       }
     } else {
       avgCheckInStr = '--:--';
-      avgCheckInDiff = 'Target 08:00 WIB';
+      avgCheckInDiff =
+          'Target ${DateFormatter.formatTimeString('08:00', isRoman: isRoman)} WIB';
     }
 
     final String avgCheckOutStr;
@@ -164,25 +191,27 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
           (validCheckOutMinutes.reduce((a, b) => a + b) /
                   validCheckOutMinutes.length)
               .round();
-      avgCheckOutStr = _minutesToTimeString(avgMin);
+      avgCheckOutStr = _minutesToTimeString(avgMin, isRoman: isRoman);
       final diff = avgMin - 900;
       if (diff > 0) {
         avgCheckOutDiff = '+$diff mnt di lokasi';
       } else if (diff < 0) {
         avgCheckOutDiff = '${diff.abs()} mnt lebih awal';
       } else {
-        avgCheckOutDiff = 'Tepat 15:00 WIB';
+        avgCheckOutDiff =
+            'Tepat ${DateFormatter.formatTimeString('15:00', isRoman: isRoman)} WIB';
       }
     } else {
       avgCheckOutStr = '--:--';
-      avgCheckOutDiff = 'Target 15:00 WIB';
+      avgCheckOutDiff =
+          'Target ${DateFormatter.formatTimeString('15:00', isRoman: isRoman)} WIB';
     }
 
     final fastestInStr = fastestInMinutes != null
-        ? _minutesToTimeString(fastestInMinutes)
+        ? _minutesToTimeString(fastestInMinutes, isRoman: isRoman)
         : '--:--';
     final latestOutStr = latestOutMinutes != null
-        ? _minutesToTimeString(latestOutMinutes)
+        ? _minutesToTimeString(latestOutMinutes, isRoman: isRoman)
         : '--:--';
 
     String bestDayName = 'Senin';
@@ -209,15 +238,18 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
     final String funFactText;
     if (bestDayAvgMin != null && bestDayAvgMin <= 8) {
       funFactText =
-          'Anda paling sering check-in lebih awal di hari $bestDayName (rata-rata ${_minutesToTimeString(bestDayAvgMin)} WIB). Konsistensi yang hebat!';
+          'Anda paling sering check-in lebih awal di hari $bestDayName (rata-rata ${_minutesToTimeString(bestDayAvgMin, isRoman: isRoman)} WIB). Konsistensi yang hebat!';
     } else {
       funFactText =
-          'Check-in sebelum pukul 08:00 WIB setiap hari untuk menjaga rekor kehadiran sempurna dan memaksimalkan pelatihan Anda!';
+          'Check-in sebelum pukul ${DateFormatter.formatTimeString('08:00', isRoman: isRoman)} WIB setiap hari untuk menjaga rekor kehadiran sempurna dan memaksimalkan pelatihan Anda!';
     }
 
     final String motivationText;
     final Color onTimeColor;
-    if (onTimePercentage >= 90) {
+    if (totalAttended == 0) {
+      motivationText = 'Belum ada catatan presensi pada periode ini';
+      onTimeColor = isDark ? AppColors.textMediumDark : const Color(0xFF94A3B8);
+    } else if (onTimePercentage >= 90) {
       motivationText = 'Anda sangat disiplin bulan ini!';
       onTimeColor = const Color(0xFF10B981);
     } else if (onTimePercentage >= 75) {
@@ -293,423 +325,425 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: NeumorphicDecorations.extrudedSm(
-                      isDark: isDark,
-                      borderRadius: 10,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.calendar_month_rounded,
-                          size: 14,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${_shortMonths[historyProv.currentMonth.month - 1]} ${historyProv.currentMonth.year}',
-                          style: TextStyle(
-                            fontSize: 11 * fontScale,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? AppColors.textHighDark
-                                : AppColors.textHigh,
+                  GestureDetector(
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final initial = historyProv.currentMonth.isAfter(now)
+                          ? now
+                          : historyProv.currentMonth;
+                      final selected = await showDatePicker(
+                        context: context,
+                        initialDate: initial,
+                        firstDate: DateTime(2024),
+                        lastDate: now,
+                      );
+                      if (selected != null) {
+                        historyProv.changeMonth(selected);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: NeumorphicDecorations.extrudedSm(
+                        isDark: isDark,
+                        borderRadius: 10,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_month_rounded,
+                            size: 14,
+                            color: AppColors.primary,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 5),
+                          Text(
+                            '${_shortMonths[historyProv.currentMonth.month - 1]} ${historyProv.currentMonth.year}',
+                            style: TextStyle(
+                              fontSize: 11 * fontScale,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.textHighDark
+                                  : AppColors.textHigh,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 15,
+                            color: isDark
+                                ? AppColors.textMediumDark
+                                : AppColors.textMedium,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 22),
-
-              Container(
-                decoration: NeumorphicDecorations.extruded(
-                  isDark: isDark,
-                  borderRadius: 22,
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ON-TIME PERCENTAGE',
-                                style: TextStyle(
-                                  fontSize: 9.5 * fontScale,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
+              if (historyProv.isLoading)
+                _buildSkeletonLayout(isDark, fontScale)
+              else ...[
+                Container(
+                  decoration: NeumorphicDecorations.extruded(
+                    isDark: isDark,
+                    borderRadius: 22,
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'ON-TIME PERCENTAGE',
+                                  style: TextStyle(
+                                    fontSize: 9.5 * fontScale,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                    color: onTimeColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  '${onTimePercentage.toStringAsFixed(0)}%',
+                                  style: TextStyle(
+                                    fontSize: 34 * fontScale,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -1,
+                                    color: isDark
+                                        ? AppColors.textHighDark
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  motivationText,
+                                  style: TextStyle(
+                                    fontSize: 12.5 * fontScale,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? AppColors.textMediumDark
+                                        : const Color(0xFF475569),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Container(
+                            width: 88,
+                            height: 88,
+                            decoration: NeumorphicDecorations.extruded(
+                              isDark: isDark,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 68,
+                                  height: 68,
+                                  child: CircularProgressIndicator(
+                                    value: (onTimePercentage / 100).clamp(
+                                      0.0,
+                                      1.0,
+                                    ),
+                                    strokeWidth: 7,
+                                    strokeCap: StrokeCap.round,
+                                    backgroundColor: isDark
+                                        ? const Color(0xFF222B3D)
+                                        : const Color(0xFFE2E8F0),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      onTimeColor,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.timer_rounded,
+                                  size: 28,
                                   color: onTimeColor,
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                '${onTimePercentage.toStringAsFixed(0)}%',
-                                style: TextStyle(
-                                  fontSize: 34 * fontScale,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -1,
-                                  color: isDark
-                                      ? AppColors.textHighDark
-                                      : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                motivationText,
-                                style: TextStyle(
-                                  fontSize: 12.5 * fontScale,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? AppColors.textMediumDark
-                                      : const Color(0xFF475569),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Container(
-                          width: 88,
-                          height: 88,
-                          decoration: NeumorphicDecorations.extruded(
-                            isDark: isDark,
-                            shape: BoxShape.circle,
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMiniStatCard(
+                              label: 'Tepat Waktu',
+                              value: '$totalHadir',
+                              color: const Color(0xFF10B981),
+                              isDark: isDark,
+                              fontScale: fontScale,
+                            ),
                           ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                width: 68,
-                                height: 68,
-                                child: CircularProgressIndicator(
-                                  value: (onTimePercentage / 100).clamp(
-                                    0.0,
-                                    1.0,
-                                  ),
-                                  strokeWidth: 7,
-                                  strokeCap: StrokeCap.round,
-                                  backgroundColor: isDark
-                                      ? const Color(0xFF222B3D)
-                                      : const Color(0xFFE2E8F0),
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    onTimeColor,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                Icons.timer_rounded,
-                                size: 28,
-                                color: onTimeColor,
-                              ),
-                            ],
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildMiniStatCard(
+                              label: 'Terlambat',
+                              value: '$totalTerlambat',
+                              color: const Color(0xFFEA580C),
+                              isDark: isDark,
+                              fontScale: fontScale,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildMiniStatCard(
+                              label: 'Izin',
+                              value: '$totalIzin',
+                              color: const Color(0xFFF59E0B),
+                              isDark: isDark,
+                              fontScale: fontScale,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Text(
+                    'Analisis Waktu Kehadiran',
+                    style: TextStyle(
+                      fontSize: 15 * fontScale,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.textHighDark
+                          : const Color(0xFF0F172A),
                     ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMiniStatCard(
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTimeMetricCard(
+                        title: 'Rata-Rata Masuk',
+                        value: avgCheckInStr,
+                        subtitle: avgCheckInDiff,
+                        icon: Icons.login_rounded,
+                        accentColor: const Color(0xFF0284C7),
+                        isDark: isDark,
+                        fontScale: fontScale,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTimeMetricCard(
+                        title: 'Rata-Rata Pulang',
+                        value: avgCheckOutStr,
+                        subtitle: avgCheckOutDiff,
+                        icon: Icons.logout_rounded,
+                        accentColor: const Color(0xFF4F46E5),
+                        isDark: isDark,
+                        fontScale: fontScale,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTimeMetricCard(
+                        title: 'In Tercepat',
+                        value: fastestInStr,
+                        subtitle: fastestInDate != null
+                            ? _formatShortDate(fastestInDate)
+                            : 'Rekor Masuk',
+                        icon: Icons.bolt_rounded,
+                        accentColor: const Color(0xFF10B981),
+                        isDark: isDark,
+                        fontScale: fontScale,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTimeMetricCard(
+                        title: 'Out Terlama',
+                        value: latestOutStr,
+                        subtitle: latestOutDate != null
+                            ? _formatShortDate(latestOutDate)
+                            : 'Rekor Pulang',
+                        icon: Icons.nightlight_round,
+                        accentColor: const Color(0xFFF59E0B),
+                        isDark: isDark,
+                        fontScale: fontScale,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                Container(
+                  decoration: NeumorphicDecorations.extruded(
+                    isDark: isDark,
+                    borderRadius: 22,
+                  ),
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Distribusi Kehadiran',
+                            style: TextStyle(
+                              fontSize: 14.5 * fontScale,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.textHighDark
+                                  : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            '${stats.totalAbsen > 0 ? stats.totalAbsen : totalAttended + totalIzin} Total Catatan',
+                            style: TextStyle(
+                              fontSize: 11 * fontScale,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.textMediumDark
+                                  : AppColors.textMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          height: 14,
+                          decoration: NeumorphicDecorations.insetWell(
+                            isDark: isDark,
+                            borderRadius: 10,
+                          ),
+                          child: (totalAttended + totalIzin) == 0
+                              ? Container(
+                                  color: isDark
+                                      ? const Color(0xFF232D3F)
+                                      : const Color(0xFFE2E8F0),
+                                )
+                              : Row(
+                                  children: [
+                                    if (totalHadir > 0)
+                                      Expanded(
+                                        flex: totalHadir,
+                                        child: Container(
+                                          color: const Color(0xFF10B981),
+                                        ),
+                                      ),
+                                    if (totalTerlambat > 0)
+                                      Expanded(
+                                        flex: totalTerlambat,
+                                        child: Container(
+                                          color: const Color(0xFFEA580C),
+                                        ),
+                                      ),
+                                    if (totalIzin > 0)
+                                      Expanded(
+                                        flex: totalIzin,
+                                        child: Container(
+                                          color: const Color(0xFFF59E0B),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildLegendItem(
                             label: 'Tepat Waktu',
-                            value: '$totalHadir',
+                            count: totalHadir,
                             color: const Color(0xFF10B981),
                             isDark: isDark,
                             fontScale: fontScale,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildMiniStatCard(
+                          _buildLegendItem(
                             label: 'Terlambat',
-                            value: '$totalTerlambat',
+                            count: totalTerlambat,
                             color: const Color(0xFFEA580C),
                             isDark: isDark,
                             fontScale: fontScale,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildMiniStatCard(
+                          _buildLegendItem(
                             label: 'Izin',
-                            value: '$totalIzin',
+                            count: totalIzin,
                             color: const Color(0xFFF59E0B),
                             isDark: isDark,
                             fontScale: fontScale,
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Text(
-                  'Analisis Waktu Kehadiran',
-                  style: TextStyle(
-                    fontSize: 15 * fontScale,
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.textHighDark
-                        : const Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTimeMetricCard(
-                      title: 'Rata-Rata Masuk',
-                      value: avgCheckInStr,
-                      subtitle: avgCheckInDiff,
-                      icon: Icons.login_rounded,
-                      accentColor: const Color(0xFF0284C7),
-                      isDark: isDark,
-                      fontScale: fontScale,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTimeMetricCard(
-                      title: 'Rata-Rata Pulang',
-                      value: avgCheckOutStr,
-                      subtitle: avgCheckOutDiff,
-                      icon: Icons.logout_rounded,
-                      accentColor: const Color(0xFF4F46E5),
-                      isDark: isDark,
-                      fontScale: fontScale,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTimeMetricCard(
-                      title: 'In Tercepat',
-                      value: fastestInStr,
-                      subtitle: fastestInDate != null
-                          ? _formatShortDate(fastestInDate)
-                          : 'Rekor Masuk',
-                      icon: Icons.bolt_rounded,
-                      accentColor: const Color(0xFF10B981),
-                      isDark: isDark,
-                      fontScale: fontScale,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTimeMetricCard(
-                      title: 'Out Terlama',
-                      value: latestOutStr,
-                      subtitle: latestOutDate != null
-                          ? _formatShortDate(latestOutDate)
-                          : 'Rekor Pulang',
-                      icon: Icons.nightlight_round,
-                      accentColor: const Color(0xFFF59E0B),
-                      isDark: isDark,
-                      fontScale: fontScale,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              Container(
-                decoration: NeumorphicDecorations.extruded(
-                  isDark: isDark,
-                  borderRadius: 22,
-                ),
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Distribusi Kehadiran',
-                          style: TextStyle(
-                            fontSize: 14.5 * fontScale,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? AppColors.textHighDark
-                                : const Color(0xFF0F172A),
-                          ),
-                        ),
-                        Text(
-                          '${stats.totalAbsen > 0 ? stats.totalAbsen : totalAttended + totalIzin} Total Catatan',
-                          style: TextStyle(
-                            fontSize: 11 * fontScale,
-                            fontWeight: FontWeight.w600,
-                            color: isDark
-                                ? AppColors.textMediumDark
-                                : AppColors.textMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        height: 14,
-                        decoration: NeumorphicDecorations.insetWell(
-                          isDark: isDark,
-                          borderRadius: 10,
-                        ),
-                        child: (totalAttended + totalIzin) == 0
-                            ? Container(
-                                color: isDark
-                                    ? const Color(0xFF232D3F)
-                                    : const Color(0xFFE2E8F0),
-                              )
-                            : Row(
-                                children: [
-                                  if (totalHadir > 0)
-                                    Expanded(
-                                      flex: totalHadir,
-                                      child: Container(
-                                        color: const Color(0xFF10B981),
-                                      ),
-                                    ),
-                                  if (totalTerlambat > 0)
-                                    Expanded(
-                                      flex: totalTerlambat,
-                                      child: Container(
-                                        color: const Color(0xFFEA580C),
-                                      ),
-                                    ),
-                                  if (totalIzin > 0)
-                                    Expanded(
-                                      flex: totalIzin,
-                                      child: Container(
-                                        color: const Color(0xFFF59E0B),
-                                      ),
-                                    ),
-                                ],
-                              ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildLegendItem(
-                          label: 'Tepat Waktu',
-                          count: totalHadir,
-                          color: const Color(0xFF10B981),
-                          isDark: isDark,
-                          fontScale: fontScale,
-                        ),
-                        _buildLegendItem(
-                          label: 'Terlambat',
-                          count: totalTerlambat,
-                          color: const Color(0xFFEA580C),
-                          isDark: isDark,
-                          fontScale: fontScale,
-                        ),
-                        _buildLegendItem(
-                          label: 'Izin',
-                          count: totalIzin,
-                          color: const Color(0xFFF59E0B),
-                          isDark: isDark,
-                          fontScale: fontScale,
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              Container(
-                decoration: NeumorphicDecorations.extruded(
-                  isDark: isDark,
-                  borderRadius: 22,
-                ),
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF0284C7,
-                            ).withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
+                Container(
+                  decoration: NeumorphicDecorations.extruded(
+                    isDark: isDark,
+                    borderRadius: 22,
+                  ),
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
                             Icons.lightbulb_rounded,
                             size: 22,
                             color: Color(0xFF0284C7),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'FUN FACT KEHADIRAN',
-                              style: TextStyle(
-                                fontSize: 10.5 * fontScale,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
-                                color: const Color(0xFF0284C7),
-                              ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'FUN FACT KEHADIRAN',
+                            style: TextStyle(
+                              fontSize: 10.5 * fontScale,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                              color: const Color(0xFF0284C7),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Insight Pola Disiplin Anda',
-                              style: TextStyle(
-                                fontSize: 13 * fontScale,
-                                fontWeight: FontWeight.w700,
-                                color: isDark
-                                    ? AppColors.textHighDark
-                                    : const Color(0xFF0F172A),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      funFactText,
-                      style: TextStyle(
-                        fontSize: 13 * fontScale,
-                        height: 1.45,
-                        fontWeight: FontWeight.w500,
-                        color: isDark
-                            ? AppColors.textMediumDark
-                            : const Color(0xFF334155),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 14),
+                      Text(
+                        funFactText,
+                        style: TextStyle(
+                          fontSize: 13 * fontScale,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? AppColors.textMediumDark
+                              : const Color(0xFF334155),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
             ],
           ),
         ),
@@ -829,6 +863,101 @@ class AttendanceStatsDetailScreen extends StatelessWidget {
             fontSize: 11 * fontScale,
             fontWeight: FontWeight.w600,
             color: isDark ? AppColors.textMediumDark : const Color(0xFF475569),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonLayout(bool isDark, double fontScale) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: NeumorphicDecorations.extruded(
+            isDark: isDark,
+            borderRadius: 22,
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        NeumorphicSkeleton(
+                          width: 110,
+                          height: 12,
+                          borderRadius: 4,
+                        ),
+                        SizedBox(height: 12),
+                        NeumorphicSkeleton(
+                          width: 80,
+                          height: 34,
+                          borderRadius: 8,
+                        ),
+                        SizedBox(height: 10),
+                        NeumorphicSkeleton(
+                          width: 160,
+                          height: 14,
+                          borderRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const NeumorphicSkeleton.circle(size: 80),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: const [
+                  Expanded(
+                    child: NeumorphicSkeleton(height: 64, borderRadius: 14),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: NeumorphicSkeleton(height: 64, borderRadius: 14),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: NeumorphicSkeleton(height: 64, borderRadius: 14),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        const NeumorphicSkeleton(width: 160, height: 16, borderRadius: 4),
+        const SizedBox(height: 14),
+        Row(
+          children: const [
+            Expanded(child: NeumorphicSkeleton(height: 95, borderRadius: 18)),
+            SizedBox(width: 12),
+            Expanded(child: NeumorphicSkeleton(height: 95, borderRadius: 18)),
+          ],
+        ),
+        const SizedBox(height: 22),
+        const NeumorphicSkeleton(width: 140, height: 16, borderRadius: 4),
+        const SizedBox(height: 14),
+        Container(
+          decoration: NeumorphicDecorations.extruded(
+            isDark: isDark,
+            borderRadius: 20,
+          ),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            children: const [
+              NeumorphicSkeleton(height: 20, borderRadius: 6),
+              SizedBox(height: 16),
+              NeumorphicSkeleton(height: 18, borderRadius: 6),
+              SizedBox(height: 16),
+              NeumorphicSkeleton(height: 18, borderRadius: 6),
+            ],
           ),
         ),
       ],

@@ -605,6 +605,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
                           _buildDivider(isDark),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.access_time_filled_rounded,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Jam Angka Romawi',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppColors.textHighDark
+                                          : AppColors.textHigh,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Switch(
+                                value: theme.isRomanClock,
+                                activeThumbColor: AppColors.primary,
+                                onChanged: (val) => theme.toggleRomanClock(val),
+                              ),
+                            ],
+                          ),
+                          _buildDivider(isDark),
                           InkWell(
                             borderRadius: BorderRadius.circular(8),
                             onTap: () {
@@ -786,7 +817,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       InkWell(
                                         onTap: () => _pickReminderTime(isCheckIn: true),
                                         child: Text(
-                                          'Waktu: $_reminderInTime WIB',
+                                          'Waktu: ${DateFormatter.formatTimeString(_reminderInTime, isRoman: theme.isRomanClock)} WIB',
                                           style: const TextStyle(
                                             fontSize: 11.5,
                                             color: AppColors.primary,
@@ -836,7 +867,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       InkWell(
                                         onTap: () => _pickReminderTime(isCheckIn: false),
                                         child: Text(
-                                          'Waktu: $_reminderOutTime WIB',
+                                          'Waktu: ${DateFormatter.formatTimeString(_reminderOutTime, isRoman: theme.isRomanClock)} WIB',
                                           style: const TextStyle(
                                             fontSize: 11.5,
                                             color: AppColors.primary,

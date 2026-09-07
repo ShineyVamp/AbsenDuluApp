@@ -16,6 +16,8 @@ class AttendanceProvider extends ChangeNotifier {
   double _distanceToPpkd = 0.0;
   bool _isInsideGeofence = false;
   bool _isLoading = false;
+  bool _isTodayLoading = true;
+  bool _isStatsLoading = true;
   String? _errorMessage;
 
   AttendanceModel? _todayAttendance;
@@ -29,6 +31,8 @@ class AttendanceProvider extends ChangeNotifier {
   double get distanceToPpkd => _distanceToPpkd;
   bool get isInsideGeofence => _isInsideGeofence;
   bool get isLoading => _isLoading;
+  bool get isTodayLoading => _isTodayLoading;
+  bool get isStatsLoading => _isStatsLoading;
   String? get errorMessage => _errorMessage;
   AttendanceModel? get todayAttendance => _todayAttendance;
   AttendanceStatsModel get stats => _stats;
@@ -38,8 +42,20 @@ class AttendanceProvider extends ChangeNotifier {
   bool get hasPendingOffline => _offlineQueue.isNotEmpty;
 
   AttendanceProvider() {
+    _initTodayCache();
     _startClock();
     initDashboard();
+  }
+
+  void _initTodayCache() {
+    final todayStr = DateFormatter.formatApiDate(DateTime.now());
+    final cachedJson = StorageService.getTodayAttendance(todayStr);
+    if (cachedJson != null && cachedJson.isNotEmpty) {
+      try {
+        _todayAttendance = AttendanceModel.fromJson(jsonDecode(cachedJson));
+        _isTodayLoading = false;
+      } catch (_) {}
+    }
   }
 
   void _loadOfflineQueue() {
@@ -57,9 +73,18 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> initDashboard() async {
     _loadOfflineQueue();
-    await updateLocation();
-    await loadTodayAttendance();
-    await loadStats();
+    if (_todayAttendance == null) {
+      _isTodayLoading = true;
+    }
+    _isStatsLoading = true;
+    notifyListeners();
+
+    await Future.wait([
+      updateLocation(),
+      loadTodayAttendance(),
+      loadStats(),
+    ]);
+
     if (_offlineQueue.isNotEmpty) {
       syncOfflineAttendance();
     }
@@ -99,6 +124,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> clearTodayAttendance() async {
     _todayAttendance = null;
+    _isTodayLoading = false;
     final todayStr = DateFormatter.formatApiDate(DateTime.now());
     await StorageService.clearTodayAttendance(todayStr);
     await loadStats();
@@ -112,6 +138,7 @@ class AttendanceProvider extends ChangeNotifier {
       if (cachedJson != null && cachedJson.isNotEmpty) {
         try {
           _todayAttendance = AttendanceModel.fromJson(jsonDecode(cachedJson));
+          _isTodayLoading = false;
           notifyListeners();
         } catch (_) {}
       }
@@ -150,8 +177,11 @@ class AttendanceProvider extends ChangeNotifier {
         _todayAttendance = null;
         await StorageService.clearTodayAttendance(todayStr);
       }
+    } catch (_) {
+    } finally {
+      _isTodayLoading = false;
       notifyListeners();
-    } catch (_) {}
+    }
   }
 
   Future<void> loadStats() async {
@@ -165,8 +195,11 @@ class AttendanceProvider extends ChangeNotifier {
 
     try {
       _stats = await _repository.getAttendanceStats(startStr, endStr);
+    } catch (_) {
+    } finally {
+      _isStatsLoading = false;
       notifyListeners();
-    } catch (_) {}
+    }
   }
 
   Future<bool> checkIn() async {

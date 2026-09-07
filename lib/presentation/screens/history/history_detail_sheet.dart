@@ -6,7 +6,7 @@ import 'package:absendulu/extensions/navigation.dart';
 import 'package:absendulu/data/models/attendance_model.dart';
 import 'package:absendulu/presentation/providers/attendance_provider.dart';
 import 'package:absendulu/presentation/providers/history_provider.dart';
-import 'package:absendulu/presentation/widgets/custom_snackbar.dart';
+import 'package:absendulu/presentation/providers/theme_provider.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_button.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_status_chip.dart';
 
@@ -38,34 +38,50 @@ class HistoryDetailSheet extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
+      final messenger = ScaffoldMessenger.of(context);
       final historyProv = Provider.of<HistoryProvider>(context, listen: false);
       final attendanceProv = Provider.of<AttendanceProvider>(
         context,
         listen: false,
       );
-      if (attendance.id != null) {
-        final success = await historyProv.deleteAttendance(attendance.id!);
-        if (context.mounted) {
-          if (success) {
-            final todayStr = DateFormatter.formatApiDate(DateTime.now());
-            if (attendanceProv.todayAttendance?.id == attendance.id ||
-                attendance.attendanceDate == todayStr) {
-              await attendanceProv.clearTodayAttendance();
-            } else {
-              await attendanceProv.loadStats();
-            }
-            if (!context.mounted) return;
-            CustomSnackBar.showSuccess(
-              context,
-              'Data presensi berhasil dihapus',
-            );
-            context.pop();
+      final attendanceId = attendance.id;
+      final attendanceDate = attendance.attendanceDate;
+
+      Navigator.of(context).pop();
+
+      if (attendanceId != null) {
+        final success = await historyProv.deleteAttendance(attendanceId);
+        if (success) {
+          final todayStr = DateFormatter.formatApiDate(DateTime.now());
+          if (attendanceProv.todayAttendance?.id == attendanceId ||
+              attendanceDate == todayStr) {
+            await attendanceProv.clearTodayAttendance();
           } else {
-            CustomSnackBar.showError(
-              context,
-              historyProv.errorMessage ?? 'Gagal menghapus data presensi',
-            );
+            await attendanceProv.loadStats();
           }
+          messenger.showSnackBar(
+            SnackBar(
+              content: const Text('Data presensi berhasil dihapus'),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        } else {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                historyProv.errorMessage ?? 'Gagal menghapus data presensi',
+              ),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
         }
       }
     }
@@ -74,6 +90,7 @@ class HistoryDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Provider.of<ThemeProvider>(context);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -196,7 +213,10 @@ class HistoryDetailSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        attendance.effectiveCheckInTime,
+                        DateFormatter.formatTimeString(
+                          attendance.effectiveCheckInTime,
+                          isRoman: theme.isRomanClock,
+                        ),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -239,7 +259,10 @@ class HistoryDetailSheet extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        attendance.effectiveCheckOutTime,
+                        DateFormatter.formatTimeString(
+                          attendance.effectiveCheckOutTime,
+                          isRoman: theme.isRomanClock,
+                        ),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,

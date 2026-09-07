@@ -20,6 +20,7 @@ class HistoryProvider extends ChangeNotifier {
 
   HistoryProvider() {
     _initHistory();
+    loadHistory(isBackgroundRefresh: _historyList.isNotEmpty);
   }
 
   String _getMonthKey(DateTime month) {
