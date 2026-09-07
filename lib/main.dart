@@ -6,6 +6,7 @@ import 'package:absendulu/presentation/providers/history_provider.dart';
 import 'package:absendulu/presentation/providers/theme_provider.dart';
 import 'package:absendulu/presentation/screens/splash/splash_screen.dart';
 import 'package:device_preview/device_preview.dart';
+import 'package:device_preview/presets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +15,9 @@ void main() async {
   // WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
   DevicePreview.enable();
+  final c = DevicePreview.controller;
+  await c.applyPreset(DevicePresets.pixel10);
+  await c.setOrientation(Orientation.portrait);
   await StorageService.init();
   runApp(const AbsenduluApp());
 }

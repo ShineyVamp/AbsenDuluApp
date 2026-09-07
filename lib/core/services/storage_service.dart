@@ -54,7 +54,10 @@ class StorageService {
     return _prefs?.getBool(_keyUseRomanClock) ?? false;
   }
 
-  static Future<void> saveTodayAttendance(String date, String jsonString) async {
+  static Future<void> saveTodayAttendance(
+    String date,
+    String jsonString,
+  ) async {
     await _prefs?.setString('today_attendance_$date', jsonString);
   }
 
@@ -88,25 +91,37 @@ class StorageService {
   }
 
   static const String _keyOfflineQueue = 'offline_attendance_queue';
+  static const String _keyLastServerTime = 'last_known_server_time';
   static const String _keyReminderCheckIn = 'reminder_checkin_enabled';
   static const String _keyReminderCheckOut = 'reminder_checkout_enabled';
   static const String _keyReminderCheckInTime = 'reminder_checkin_time';
   static const String _keyReminderCheckOutTime = 'reminder_checkout_time';
 
-  static Future<void> saveUserMeta(String userKey, Map<String, dynamic> meta) async {
-    await _prefs?.setString('user_meta_$userKey', jsonEncode(meta));
+  static Future<void> saveLastKnownServerTime(DateTime time) async {
+    await _prefs?.setString(_keyLastServerTime, time.toUtc().toIso8601String());
   }
 
-  static Map<String, dynamic>? getUserMeta(String userKey) {
-    final raw = _prefs?.getString('user_meta_$userKey');
+  static DateTime? getLastKnownServerTime() {
+    final raw = _prefs?.getString(_keyLastServerTime);
     if (raw != null && raw.isNotEmpty) {
-      try {
-        return jsonDecode(raw) as Map<String, dynamic>;
-      } catch (_) {
-        return null;
-      }
+      return DateTime.tryParse(raw);
     }
     return null;
+  }
+
+  static String generateQueueChecksum(Map<String, dynamic> item) {
+    final raw = '${item['type']}_${item['date']}_${item['time']}_${item['lat']}_${item['lng']}_${item['gps_timestamp']}_akuhadir_salt_sec_2026';
+    int hash = 0xcbf29ce484222325;
+    for (int i = 0; i < raw.length; i++) {
+      hash ^= raw.codeUnitAt(i);
+      hash = (hash * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+    }
+    return hash.toRadixString(16);
+  }
+
+  static bool verifyQueueChecksum(Map<String, dynamic> item) {
+    final expected = generateQueueChecksum(item);
+    return item['checksum'] == expected;
   }
 
   static Future<void> saveOfflineQueue(List<Map<String, dynamic>> queue) async {
@@ -119,7 +134,9 @@ class StorageService {
       try {
         final decoded = jsonDecode(raw);
         if (decoded is List) {
-          return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          return decoded
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
         }
       } catch (_) {
         return [];

@@ -1,8 +1,8 @@
 import 'package:absendulu/core/constants/app_colors.dart';
 import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/core/utils/date_formatter.dart';
-import 'package:absendulu/presentation/providers/attendance_provider.dart';
-import 'package:absendulu/presentation/providers/history_provider.dart';
+import 'package:absendulu/data/models/attendance_model.dart';
+import 'package:absendulu/data/repositories/attendance_repository.dart';
 import 'package:absendulu/presentation/providers/theme_provider.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
 import 'package:flutter/material.dart';
@@ -18,15 +18,70 @@ class AttendanceStatsDetailScreen extends StatefulWidget {
 
 class _AttendanceStatsDetailScreenState
     extends State<AttendanceStatsDetailScreen> {
+  final AttendanceRepository _repository = AttendanceRepository();
+  DateTime _selectedMonth = DateTime.now();
+  bool _isAllTime = false;
+  List<AttendanceModel> _detailList = [];
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final historyProv = Provider.of<HistoryProvider>(context, listen: false);
-      if (historyProv.historyList.isEmpty && !historyProv.isLoading) {
-        historyProv.loadHistory();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      List<AttendanceModel> fresh;
+      if (_isAllTime) {
+        fresh = await _repository.getHistory();
+      } else {
+        final start = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+        final end = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+        fresh = await _repository.getHistory(
+          startDate: DateFormatter.formatApiDate(start),
+          endDate: DateFormatter.formatApiDate(end),
+        );
       }
-    });
+      if (mounted) {
+        setState(() {
+          _detailList = fresh;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _pickMonth() async {
+    final now = DateTime.now();
+    final initial = _selectedMonth.isAfter(now) ? now : _selectedMonth;
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2024),
+      lastDate: now,
+    );
+    if (selected != null) {
+      setState(() {
+        _selectedMonth = selected;
+        _isAllTime = false;
+      });
+      _loadData();
+    } else if (_isAllTime) {
+      setState(() => _isAllTime = false);
+      _loadData();
+    }
+  }
+
+  void _selectAllTime() {
+    if (_isAllTime) return;
+    setState(() => _isAllTime = true);
+    _loadData();
   }
 
   int? _timeToMinutes(String timeStr) {
@@ -85,8 +140,6 @@ class _AttendanceStatsDetailScreenState
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final attendance = Provider.of<AttendanceProvider>(context);
-    final historyProv = Provider.of<HistoryProvider>(context);
     final theme = Provider.of<ThemeProvider>(context);
     final isRoman = theme.isRomanClock;
 
@@ -95,8 +148,7 @@ class _AttendanceStatsDetailScreenState
         ? 0.86
         : (screenWidth < 400 ? 0.94 : 1.0);
 
-    final historyList = historyProv.historyList;
-    final stats = attendance.stats;
+    final historyList = _detailList;
 
     final totalTerlambat = historyList
         .where(
@@ -260,491 +312,547 @@ class _AttendanceStatsDetailScreenState
       onTimeColor = const Color(0xFFEA580C);
     }
 
-    final currentMonthStr = DateFormatter.formatMonthYear(
-      historyProv.currentMonth,
-    );
+    final currentPeriodStr = _isAllTime
+        ? 'Semua Periode'
+        : DateFormatter.formatMonthYear(_selectedMonth);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.backgroundDark : AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: NeumorphicDecorations.extrudedSm(
-                        isDark: isDark,
-                        borderRadius: 12,
-                      ),
-                      child: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 18,
-                        color: isDark
-                            ? AppColors.textHighDark
-                            : AppColors.textHigh,
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          color: AppColors.primary,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: NeumorphicDecorations.extrudedSm(
+                          isDark: isDark,
+                          borderRadius: 12,
+                        ),
+                        child: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 18,
+                          color: isDark
+                              ? AppColors.textHighDark
+                              : AppColors.textHigh,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Insight Kehadiran',
-                          style: TextStyle(
-                            fontSize: 19 * fontScale,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: isDark
-                                ? AppColors.textHighDark
-                                : AppColors.textHigh,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          currentMonthStr,
-                          style: TextStyle(
-                            fontSize: 11.5 * fontScale,
-                            fontWeight: FontWeight.w500,
-                            color: isDark
-                                ? AppColors.textMediumDark
-                                : AppColors.textMedium,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () async {
-                      final now = DateTime.now();
-                      final initial = historyProv.currentMonth.isAfter(now)
-                          ? now
-                          : historyProv.currentMonth;
-                      final selected = await showDatePicker(
-                        context: context,
-                        initialDate: initial,
-                        firstDate: DateTime(2024),
-                        lastDate: now,
-                      );
-                      if (selected != null) {
-                        historyProv.changeMonth(selected);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: NeumorphicDecorations.extrudedSm(
-                        isDark: isDark,
-                        borderRadius: 10,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.calendar_month_rounded,
-                            size: 14,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(width: 5),
                           Text(
-                            '${_shortMonths[historyProv.currentMonth.month - 1]} ${historyProv.currentMonth.year}',
+                            'Insight Kehadiran',
                             style: TextStyle(
-                              fontSize: 11 * fontScale,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 19 * fontScale,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
                               color: isDark
                                   ? AppColors.textHighDark
                                   : AppColors.textHigh,
                             ),
                           ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 15,
-                            color: isDark
-                                ? AppColors.textMediumDark
-                                : AppColors.textMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              if (historyProv.isLoading)
-                _buildSkeletonLayout(isDark, fontScale)
-              else ...[
-                Container(
-                  decoration: NeumorphicDecorations.extruded(
-                    isDark: isDark,
-                    borderRadius: 22,
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'ON-TIME PERCENTAGE',
-                                  style: TextStyle(
-                                    fontSize: 9.5 * fontScale,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                    color: onTimeColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  '${onTimePercentage.toStringAsFixed(0)}%',
-                                  style: TextStyle(
-                                    fontSize: 34 * fontScale,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -1,
-                                    color: isDark
-                                        ? AppColors.textHighDark
-                                        : const Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  motivationText,
-                                  style: TextStyle(
-                                    fontSize: 12.5 * fontScale,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? AppColors.textMediumDark
-                                        : const Color(0xFF475569),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Container(
-                            width: 88,
-                            height: 88,
-                            decoration: NeumorphicDecorations.extruded(
-                              isDark: isDark,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 68,
-                                  height: 68,
-                                  child: CircularProgressIndicator(
-                                    value: (onTimePercentage / 100).clamp(
-                                      0.0,
-                                      1.0,
-                                    ),
-                                    strokeWidth: 7,
-                                    strokeCap: StrokeCap.round,
-                                    backgroundColor: isDark
-                                        ? const Color(0xFF222B3D)
-                                        : const Color(0xFFE2E8F0),
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      onTimeColor,
-                                    ),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.timer_rounded,
-                                  size: 28,
-                                  color: onTimeColor,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildMiniStatCard(
-                              label: 'Tepat Waktu',
-                              value: '$totalHadir',
-                              color: const Color(0xFF10B981),
-                              isDark: isDark,
-                              fontScale: fontScale,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildMiniStatCard(
-                              label: 'Terlambat',
-                              value: '$totalTerlambat',
-                              color: const Color(0xFFEA580C),
-                              isDark: isDark,
-                              fontScale: fontScale,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildMiniStatCard(
-                              label: 'Izin',
-                              value: '$totalIzin',
-                              color: const Color(0xFFF59E0B),
-                              isDark: isDark,
-                              fontScale: fontScale,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: Text(
-                    'Analisis Waktu Kehadiran',
-                    style: TextStyle(
-                      fontSize: 15 * fontScale,
-                      fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.textHighDark
-                          : const Color(0xFF0F172A),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTimeMetricCard(
-                        title: 'Rata-Rata Masuk',
-                        value: avgCheckInStr,
-                        subtitle: avgCheckInDiff,
-                        icon: Icons.login_rounded,
-                        accentColor: const Color(0xFF0284C7),
-                        isDark: isDark,
-                        fontScale: fontScale,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTimeMetricCard(
-                        title: 'Rata-Rata Pulang',
-                        value: avgCheckOutStr,
-                        subtitle: avgCheckOutDiff,
-                        icon: Icons.logout_rounded,
-                        accentColor: const Color(0xFF4F46E5),
-                        isDark: isDark,
-                        fontScale: fontScale,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTimeMetricCard(
-                        title: 'In Tercepat',
-                        value: fastestInStr,
-                        subtitle: fastestInDate != null
-                            ? _formatShortDate(fastestInDate)
-                            : 'Rekor Masuk',
-                        icon: Icons.bolt_rounded,
-                        accentColor: const Color(0xFF10B981),
-                        isDark: isDark,
-                        fontScale: fontScale,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTimeMetricCard(
-                        title: 'Out Terlama',
-                        value: latestOutStr,
-                        subtitle: latestOutDate != null
-                            ? _formatShortDate(latestOutDate)
-                            : 'Rekor Pulang',
-                        icon: Icons.nightlight_round,
-                        accentColor: const Color(0xFFF59E0B),
-                        isDark: isDark,
-                        fontScale: fontScale,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                Container(
-                  decoration: NeumorphicDecorations.extruded(
-                    isDark: isDark,
-                    borderRadius: 22,
-                  ),
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
+                          const SizedBox(height: 2),
                           Text(
-                            'Distribusi Kehadiran',
+                            currentPeriodStr,
                             style: TextStyle(
-                              fontSize: 14.5 * fontScale,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? AppColors.textHighDark
-                                  : const Color(0xFF0F172A),
-                            ),
-                          ),
-                          Text(
-                            '${stats.totalAbsen > 0 ? stats.totalAbsen : totalAttended + totalIzin} Total Catatan',
-                            style: TextStyle(
-                              fontSize: 11 * fontScale,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 11.5 * fontScale,
+                              fontWeight: FontWeight.w500,
                               color: isDark
                                   ? AppColors.textMediumDark
                                   : AppColors.textMedium,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_isAllTime) {
+                            setState(() => _isAllTime = false);
+                            _loadData();
+                          } else {
+                            _pickMonth();
+                          }
+                        },
                         child: Container(
-                          height: 14,
-                          decoration: NeumorphicDecorations.insetWell(
-                            isDark: isDark,
-                            borderRadius: 10,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 9,
                           ),
-                          child: (totalAttended + totalIzin) == 0
-                              ? Container(
-                                  color: isDark
-                                      ? const Color(0xFF232D3F)
-                                      : const Color(0xFFE2E8F0),
+                          decoration: !_isAllTime
+                              ? NeumorphicDecorations.primaryPill(
+                                  borderRadius: 12,
                                 )
-                              : Row(
-                                  children: [
-                                    if (totalHadir > 0)
-                                      Expanded(
-                                        flex: totalHadir,
-                                        child: Container(
-                                          color: const Color(0xFF10B981),
-                                        ),
-                                      ),
-                                    if (totalTerlambat > 0)
-                                      Expanded(
-                                        flex: totalTerlambat,
-                                        child: Container(
-                                          color: const Color(0xFFEA580C),
-                                        ),
-                                      ),
-                                    if (totalIzin > 0)
-                                      Expanded(
-                                        flex: totalIzin,
-                                        child: Container(
-                                          color: const Color(0xFFF59E0B),
-                                        ),
-                                      ),
-                                  ],
+                              : NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 12,
                                 ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.calendar_month_rounded,
+                                size: 15,
+                                color: !_isAllTime
+                                    ? Colors.white
+                                    : (isDark
+                                          ? AppColors.textHighDark
+                                          : AppColors.textHigh),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  '${_shortMonths[_selectedMonth.month - 1]} ${_selectedMonth.year}',
+                                  style: TextStyle(
+                                    fontSize: 12 * fontScale,
+                                    fontWeight: FontWeight.w700,
+                                    color: !_isAllTime
+                                        ? Colors.white
+                                        : (isDark
+                                              ? AppColors.textHighDark
+                                              : AppColors.textHigh),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: !_isAllTime
+                                    ? Colors.white
+                                    : (isDark
+                                          ? AppColors.textMediumDark
+                                          : AppColors.textMedium),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildLegendItem(
-                            label: 'Tepat Waktu',
-                            count: totalHadir,
-                            color: const Color(0xFF10B981),
-                            isDark: isDark,
-                            fontScale: fontScale,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _selectAllTime,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 9,
                           ),
-                          _buildLegendItem(
-                            label: 'Terlambat',
-                            count: totalTerlambat,
-                            color: const Color(0xFFEA580C),
-                            isDark: isDark,
-                            fontScale: fontScale,
+                          decoration: _isAllTime
+                              ? NeumorphicDecorations.primaryPill(
+                                  borderRadius: 12,
+                                )
+                              : NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 12,
+                                ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Semua',
+                                style: TextStyle(
+                                  fontSize: 12 * fontScale,
+                                  fontWeight: FontWeight.w700,
+                                  color: _isAllTime
+                                      ? Colors.white
+                                      : (isDark
+                                            ? AppColors.textHighDark
+                                            : AppColors.textHigh),
+                                ),
+                              ),
+                            ],
                           ),
-                          _buildLegendItem(
-                            label: 'Izin',
-                            count: totalIzin,
-                            color: const Color(0xFFF59E0B),
-                            isDark: isDark,
-                            fontScale: fontScale,
-                          ),
-                        ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-
-                Container(
-                  decoration: NeumorphicDecorations.extruded(
-                    isDark: isDark,
-                    borderRadius: 22,
-                  ),
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.lightbulb_rounded,
-                            size: 22,
-                            color: Color(0xFF0284C7),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'FUN FACT KEHADIRAN',
-                            style: TextStyle(
-                              fontSize: 10.5 * fontScale,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                              color: const Color(0xFF0284C7),
+                const SizedBox(height: 22),
+                if (_isLoading && _detailList.isEmpty)
+                  _buildSkeletonLayout(isDark, fontScale)
+                else ...[
+                  Container(
+                    decoration: NeumorphicDecorations.extruded(
+                      isDark: isDark,
+                      borderRadius: 22,
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'ON-TIME PERCENTAGE',
+                                    style: TextStyle(
+                                      fontSize: 9.5 * fontScale,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                      color: onTimeColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    '${onTimePercentage.toStringAsFixed(0)}%',
+                                    style: TextStyle(
+                                      fontSize: 34 * fontScale,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -1,
+                                      color: isDark
+                                          ? AppColors.textHighDark
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    motivationText,
+                                    style: TextStyle(
+                                      fontSize: 12.5 * fontScale,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppColors.textMediumDark
+                                          : const Color(0xFF475569),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 14),
+                            Container(
+                              width: 88,
+                              height: 88,
+                              decoration: NeumorphicDecorations.extruded(
+                                isDark: isDark,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 68,
+                                    height: 68,
+                                    child: CircularProgressIndicator(
+                                      value: (onTimePercentage / 100).clamp(
+                                        0.0,
+                                        1.0,
+                                      ),
+                                      strokeWidth: 7,
+                                      strokeCap: StrokeCap.round,
+                                      backgroundColor: isDark
+                                          ? const Color(0xFF222B3D)
+                                          : const Color(0xFFE2E8F0),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        onTimeColor,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.timer_rounded,
+                                    size: 28,
+                                    color: onTimeColor,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildMiniStatCard(
+                                label: 'Tepat Waktu',
+                                value: '$totalHadir',
+                                color: const Color(0xFF10B981),
+                                isDark: isDark,
+                                fontScale: fontScale,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildMiniStatCard(
+                                label: 'Terlambat',
+                                value: '$totalTerlambat',
+                                color: const Color(0xFFEA580C),
+                                isDark: isDark,
+                                fontScale: fontScale,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildMiniStatCard(
+                                label: 'Izin',
+                                value: '$totalIzin',
+                                color: const Color(0xFFF59E0B),
+                                isDark: isDark,
+                                fontScale: fontScale,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: Text(
+                      'Analisis Waktu Kehadiran',
+                      style: TextStyle(
+                        fontSize: 15 * fontScale,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textHighDark
+                            : const Color(0xFF0F172A),
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        funFactText,
-                        style: TextStyle(
-                          fontSize: 13 * fontScale,
-                          height: 1.45,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textMediumDark
-                              : const Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTimeMetricCard(
+                          title: 'Rata-Rata Masuk',
+                          value: avgCheckInStr,
+                          subtitle: avgCheckInDiff,
+                          icon: Icons.login_rounded,
+                          accentColor: const Color(0xFF0284C7),
+                          isDark: isDark,
+                          fontScale: fontScale,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildTimeMetricCard(
+                          title: 'Rata-Rata Pulang',
+                          value: avgCheckOutStr,
+                          subtitle: avgCheckOutDiff,
+                          icon: Icons.logout_rounded,
+                          accentColor: const Color(0xFF4F46E5),
+                          isDark: isDark,
+                          fontScale: fontScale,
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTimeMetricCard(
+                          title: 'In Tercepat',
+                          value: fastestInStr,
+                          subtitle: fastestInDate != null
+                              ? _formatShortDate(fastestInDate)
+                              : 'Rekor Masuk',
+                          icon: Icons.bolt_rounded,
+                          accentColor: const Color(0xFF10B981),
+                          isDark: isDark,
+                          fontScale: fontScale,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildTimeMetricCard(
+                          title: 'Out Terlama',
+                          value: latestOutStr,
+                          subtitle: latestOutDate != null
+                              ? _formatShortDate(latestOutDate)
+                              : 'Rekor Pulang',
+                          icon: Icons.nightlight_round,
+                          accentColor: const Color(0xFFF59E0B),
+                          isDark: isDark,
+                          fontScale: fontScale,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Container(
+                    decoration: NeumorphicDecorations.extruded(
+                      isDark: isDark,
+                      borderRadius: 22,
+                    ),
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Distribusi Kehadiran',
+                              style: TextStyle(
+                                fontSize: 14.5 * fontScale,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? AppColors.textHighDark
+                                    : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            Text(
+                              '${totalAttended + totalIzin} Total Catatan',
+                              style: TextStyle(
+                                fontSize: 11 * fontScale,
+                                fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? AppColors.textMediumDark
+                                    : AppColors.textMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            height: 14,
+                            decoration: NeumorphicDecorations.insetWell(
+                              isDark: isDark,
+                              borderRadius: 10,
+                            ),
+                            child: (totalAttended + totalIzin) == 0
+                                ? Container(
+                                    color: isDark
+                                        ? const Color(0xFF232D3F)
+                                        : const Color(0xFFE2E8F0),
+                                  )
+                                : Row(
+                                    children: [
+                                      if (totalHadir > 0)
+                                        Expanded(
+                                          flex: totalHadir,
+                                          child: Container(
+                                            color: const Color(0xFF10B981),
+                                          ),
+                                        ),
+                                      if (totalTerlambat > 0)
+                                        Expanded(
+                                          flex: totalTerlambat,
+                                          child: Container(
+                                            color: const Color(0xFFEA580C),
+                                          ),
+                                        ),
+                                      if (totalIzin > 0)
+                                        Expanded(
+                                          flex: totalIzin,
+                                          child: Container(
+                                            color: const Color(0xFFF59E0B),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildLegendItem(
+                              label: 'Tepat Waktu',
+                              count: totalHadir,
+                              color: const Color(0xFF10B981),
+                              isDark: isDark,
+                              fontScale: fontScale,
+                            ),
+                            _buildLegendItem(
+                              label: 'Terlambat',
+                              count: totalTerlambat,
+                              color: const Color(0xFFEA580C),
+                              isDark: isDark,
+                              fontScale: fontScale,
+                            ),
+                            _buildLegendItem(
+                              label: 'Izin',
+                              count: totalIzin,
+                              color: const Color(0xFFF59E0B),
+                              isDark: isDark,
+                              fontScale: fontScale,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  Container(
+                    decoration: NeumorphicDecorations.extruded(
+                      isDark: isDark,
+                      borderRadius: 22,
+                    ),
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.lightbulb_rounded,
+                              size: 22,
+                              color: Color(0xFF0284C7),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'FUN FACT KEHADIRAN',
+                              style: TextStyle(
+                                fontSize: 10.5 * fontScale,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: const Color(0xFF0284C7),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          funFactText,
+                          style: TextStyle(
+                            fontSize: 13 * fontScale,
+                            height: 1.45,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? AppColors.textMediumDark
+                                : const Color(0xFF334155),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

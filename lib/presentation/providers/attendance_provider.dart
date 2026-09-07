@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:absendulu/core/network/api_exception.dart';
 import 'package:absendulu/core/services/location_service.dart';
 import 'package:absendulu/core/services/storage_service.dart';
 import 'package:absendulu/core/utils/date_formatter.dart';
@@ -102,22 +104,18 @@ class AttendanceProvider extends ChangeNotifier {
         pos.latitude,
         pos.longitude,
       );
+      if (!_isInsideGeofence) {
+        _errorMessage =
+            'Anda berada di luar radius presensi (${_distanceToPpkd.toStringAsFixed(0)} m dari PPKD Jakarta Pusat). Maksimal radius adalah 300 meter.';
+      } else {
+        _errorMessage = null;
+      }
       notifyListeners();
-    } catch (_) {
-      _currentPosition = Position(
-        longitude: LocationService.ppkdLng,
-        latitude: LocationService.ppkdLat,
-        timestamp: DateTime.now(),
-        accuracy: 5.0,
-        altitude: 10.0,
-        altitudeAccuracy: 1.0,
-        heading: 0.0,
-        headingAccuracy: 1.0,
-        speed: 0.0,
-        speedAccuracy: 1.0,
-      );
+    } catch (e) {
+      _currentPosition = null;
       _distanceToPpkd = 0.0;
-      _isInsideGeofence = true;
+      _isInsideGeofence = false;
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
     }
   }
@@ -184,8 +182,8 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadStats() async {
-    final now = DateTime.now();
+  Future<void> loadStats({DateTime? month}) async {
+    final now = month ?? DateTime.now();
     final startStr = DateFormatter.formatApiDate(
       DateTime(now.year, now.month, 1),
     );
@@ -209,75 +207,136 @@ class AttendanceProvider extends ChangeNotifier {
 
     try {
       await updateLocation();
-      final now = DateTime.now();
-      final dateStr = DateFormatter.formatApiDate(now);
-      final timeStr = DateFormatter.formatApiTime(now);
+      if (_currentPosition == null || !_isInsideGeofence) {
+        _errorMessage = _errorMessage ??
+            'Presensi ditolak: Anda berada di luar radius 300m atau GPS tidak aktif.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
-      final lat = _currentPosition?.latitude ?? LocationService.ppkdLat;
-      final lng = _currentPosition?.longitude ?? LocationService.ppkdLng;
+      final pos = _currentPosition!;
+      final gpsTimeUtc = pos.timestamp.toUtc();
+      final deviceTimeUtc = DateTime.now().toUtc();
+      final timeDiff = deviceTimeUtc.difference(gpsTimeUtc).abs();
 
-      final res = await _repository.checkIn(
-        date: dateStr,
-        time: timeStr,
-        lat: lat,
-        lng: lng,
-        address: LocationService.ppkdAddress,
-      );
+      if (timeDiff > const Duration(minutes: 2)) {
+        _errorMessage =
+            'Waktu perangkat tidak sinkron dengan satelit GPS (${timeDiff.inMinutes} menit selisih). Aktifkan waktu otomatis di pengaturan perangkat.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
-      _todayAttendance = res;
-      await StorageService.saveTodayAttendance(
-        dateStr,
-        jsonEncode(res.toJson()),
-      );
-      await loadTodayAttendance();
-      if (_todayAttendance == null) {
+      final lastServerTime = StorageService.getLastKnownServerTime();
+      if (lastServerTime != null &&
+          gpsTimeUtc.isBefore(
+            lastServerTime.subtract(const Duration(minutes: 5)),
+          )) {
+        _errorMessage =
+            'Terdeteksi manipulasi waktu (clock rollback). Jam perangkat tidak valid.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final officialTime = pos.timestamp.toLocal();
+      final dateStr = DateFormatter.formatApiDate(officialTime);
+      final timeStr = DateFormatter.formatApiTime(officialTime);
+      final lat = pos.latitude;
+      final lng = pos.longitude;
+
+      try {
+        final res = await _repository.checkIn(
+          date: dateStr,
+          time: timeStr,
+          lat: lat,
+          lng: lng,
+          address: LocationService.ppkdAddress,
+        );
+
         _todayAttendance = res;
         await StorageService.saveTodayAttendance(
           dateStr,
           jsonEncode(res.toJson()),
         );
-      }
-      await loadStats();
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      if (_isInsideGeofence) {
-        final now = DateTime.now();
-        final dateStr = DateFormatter.formatApiDate(now);
-        final timeStr = DateFormatter.formatApiTime(now);
-        final lat = _currentPosition?.latitude ?? LocationService.ppkdLat;
-        final lng = _currentPosition?.longitude ?? LocationService.ppkdLng;
-        final offlineItem = {
-          'type': 'check_in',
-          'date': dateStr,
-          'time': timeStr,
-          'lat': lat,
-          'lng': lng,
-          'address': LocationService.ppkdAddress,
-        };
-        await StorageService.addOfflineAttendance(offlineItem);
-        _offlineQueue = StorageService.getOfflineQueue();
-        final localRecord = AttendanceModel(
-          attendanceDate: dateStr,
-          checkIn: timeStr,
-          checkInTime: timeStr,
-          checkInLat: lat,
-          checkInLng: lng,
-          checkInAddress: LocationService.ppkdAddress,
-          status: 'masuk',
-        );
-        _todayAttendance = localRecord;
-        await StorageService.saveTodayAttendance(
-          dateStr,
-          jsonEncode(localRecord.toJson()),
-        );
-        _errorMessage = 'Tersimpan offline di antrean lokal. Akan disinkronkan saat online.';
+        await loadTodayAttendance();
+        if (_todayAttendance == null) {
+          _todayAttendance = res;
+          await StorageService.saveTodayAttendance(
+            dateStr,
+            jsonEncode(res.toJson()),
+          );
+        }
+        await loadStats();
         _isLoading = false;
         notifyListeners();
         return true;
+      } catch (e) {
+        bool isPureNetworkError = false;
+        if (e is ApiException) {
+          if (e.isCertificateError) {
+            _errorMessage = e.message;
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+          if (e.isNetworkError) {
+            isPureNetworkError = true;
+          } else {
+            _errorMessage = e.message;
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+        } else if (e is SocketException || e is TimeoutException) {
+          isPureNetworkError = true;
+        }
+
+        if (isPureNetworkError && _isInsideGeofence) {
+          final offlineItem = {
+            'type': 'check_in',
+            'date': dateStr,
+            'time': timeStr,
+            'lat': lat,
+            'lng': lng,
+            'address': LocationService.ppkdAddress,
+            'gps_timestamp': pos.timestamp.toUtc().toIso8601String(),
+            'device_time': DateTime.now().toUtc().toIso8601String(),
+          };
+          offlineItem['checksum'] = StorageService.generateQueueChecksum(
+            offlineItem,
+          );
+          await StorageService.addOfflineAttendance(offlineItem);
+          _offlineQueue = StorageService.getOfflineQueue();
+          final localRecord = AttendanceModel(
+            attendanceDate: dateStr,
+            checkIn: timeStr,
+            checkInTime: timeStr,
+            checkInLat: lat,
+            checkInLng: lng,
+            checkInAddress: LocationService.ppkdAddress,
+            status: 'masuk',
+          );
+          _todayAttendance = localRecord;
+          await StorageService.saveTodayAttendance(
+            dateStr,
+            jsonEncode(localRecord.toJson()),
+          );
+          _errorMessage =
+              'Tersimpan offline di antrean lokal. Akan disinkronkan saat online.';
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        }
+
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    } catch (outerError) {
+      _errorMessage = outerError.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -291,105 +350,166 @@ class AttendanceProvider extends ChangeNotifier {
 
     try {
       await updateLocation();
-      final now = DateTime.now();
-      final dateStr = DateFormatter.formatApiDate(now);
-      final timeStr = DateFormatter.formatApiTime(now);
+      if (_currentPosition == null || !_isInsideGeofence) {
+        _errorMessage = _errorMessage ??
+            'Presensi ditolak: Anda berada di luar radius 300m atau GPS tidak aktif.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
-      final lat = _currentPosition?.latitude ?? LocationService.ppkdLat;
-      final lng = _currentPosition?.longitude ?? LocationService.ppkdLng;
+      final pos = _currentPosition!;
+      final gpsTimeUtc = pos.timestamp.toUtc();
+      final deviceTimeUtc = DateTime.now().toUtc();
+      final timeDiff = deviceTimeUtc.difference(gpsTimeUtc).abs();
 
-      final res = await _repository.checkOut(
-        date: dateStr,
-        time: timeStr,
-        lat: lat,
-        lng: lng,
-        address: LocationService.ppkdAddress,
-      );
+      if (timeDiff > const Duration(minutes: 2)) {
+        _errorMessage =
+            'Waktu perangkat tidak sinkron dengan satelit GPS (${timeDiff.inMinutes} menit selisih). Aktifkan waktu otomatis di pengaturan perangkat.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
-      final existingCheckIn = _todayAttendance?.checkIn;
-      final existingCheckInTime = _todayAttendance?.checkInTime;
-      final merged = AttendanceModel(
-        id: res.id ?? _todayAttendance?.id,
-        userId: res.userId ?? _todayAttendance?.userId,
-        attendanceDate: res.attendanceDate ?? dateStr,
-        checkIn: res.checkIn ?? existingCheckIn,
-        checkInTime: res.checkInTime ?? existingCheckInTime,
-        checkOut: res.checkOut ?? timeStr,
-        checkOutTime: res.checkOutTime ?? timeStr,
-        checkInLat: res.checkInLat ?? _todayAttendance?.checkInLat,
-        checkInLng: res.checkInLng ?? _todayAttendance?.checkInLng,
-        checkOutLat: lat,
-        checkOutLng: lng,
-        checkInAddress: res.checkInAddress ?? _todayAttendance?.checkInAddress,
-        checkOutAddress: LocationService.ppkdAddress,
-        status: 'pulang',
-        alasanIzin: res.alasanIzin ?? _todayAttendance?.alasanIzin,
-      );
+      final lastServerTime = StorageService.getLastKnownServerTime();
+      if (lastServerTime != null &&
+          gpsTimeUtc.isBefore(
+            lastServerTime.subtract(const Duration(minutes: 5)),
+          )) {
+        _errorMessage =
+            'Terdeteksi manipulasi waktu (clock rollback). Jam perangkat tidak valid.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
-      _todayAttendance = merged;
-      await StorageService.saveTodayAttendance(
-        dateStr,
-        jsonEncode(merged.toJson()),
-      );
-      await loadTodayAttendance();
-      if (_todayAttendance == null) {
+      final officialTime = pos.timestamp.toLocal();
+      final dateStr = DateFormatter.formatApiDate(officialTime);
+      final timeStr = DateFormatter.formatApiTime(officialTime);
+      final lat = pos.latitude;
+      final lng = pos.longitude;
+
+      try {
+        final res = await _repository.checkOut(
+          date: dateStr,
+          time: timeStr,
+          lat: lat,
+          lng: lng,
+          address: LocationService.ppkdAddress,
+        );
+
+        final existingCheckIn = _todayAttendance?.checkIn;
+        final existingCheckInTime = _todayAttendance?.checkInTime;
+        final merged = AttendanceModel(
+          id: res.id ?? _todayAttendance?.id,
+          userId: res.userId ?? _todayAttendance?.userId,
+          attendanceDate: res.attendanceDate ?? dateStr,
+          checkIn: res.checkIn ?? existingCheckIn,
+          checkInTime: res.checkInTime ?? existingCheckInTime,
+          checkOut: res.checkOut ?? timeStr,
+          checkOutTime: res.checkOutTime ?? timeStr,
+          checkInLat: res.checkInLat ?? _todayAttendance?.checkInLat,
+          checkInLng: res.checkInLng ?? _todayAttendance?.checkInLng,
+          checkOutLat: lat,
+          checkOutLng: lng,
+          checkInAddress: res.checkInAddress ?? _todayAttendance?.checkInAddress,
+          checkOutAddress: LocationService.ppkdAddress,
+          status: 'pulang',
+          alasanIzin: res.alasanIzin ?? _todayAttendance?.alasanIzin,
+        );
+
         _todayAttendance = merged;
         await StorageService.saveTodayAttendance(
           dateStr,
           jsonEncode(merged.toJson()),
         );
-      }
-      await loadStats();
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      if (_isInsideGeofence) {
-        final now = DateTime.now();
-        final dateStr = DateFormatter.formatApiDate(now);
-        final timeStr = DateFormatter.formatApiTime(now);
-        final lat = _currentPosition?.latitude ?? LocationService.ppkdLat;
-        final lng = _currentPosition?.longitude ?? LocationService.ppkdLng;
-        final offlineItem = {
-          'type': 'check_out',
-          'date': dateStr,
-          'time': timeStr,
-          'lat': lat,
-          'lng': lng,
-          'address': LocationService.ppkdAddress,
-        };
-        await StorageService.addOfflineAttendance(offlineItem);
-        _offlineQueue = StorageService.getOfflineQueue();
-        final existingCheckIn = _todayAttendance?.checkIn;
-        final existingCheckInTime = _todayAttendance?.checkInTime;
-        final localRecord = AttendanceModel(
-          id: _todayAttendance?.id,
-          userId: _todayAttendance?.userId,
-          attendanceDate: _todayAttendance?.attendanceDate ?? dateStr,
-          checkIn: existingCheckIn,
-          checkInTime: existingCheckInTime,
-          checkOut: timeStr,
-          checkOutTime: timeStr,
-          checkInLat: _todayAttendance?.checkInLat,
-          checkInLng: _todayAttendance?.checkInLng,
-          checkOutLat: lat,
-          checkOutLng: lng,
-          checkInAddress: _todayAttendance?.checkInAddress,
-          checkOutAddress: LocationService.ppkdAddress,
-          status: 'pulang',
-          alasanIzin: _todayAttendance?.alasanIzin,
-        );
-        _todayAttendance = localRecord;
-        await StorageService.saveTodayAttendance(
-          dateStr,
-          jsonEncode(localRecord.toJson()),
-        );
-        _errorMessage = 'Tersimpan offline di antrean lokal. Akan disinkronkan saat online.';
+        await loadTodayAttendance();
+        if (_todayAttendance == null) {
+          _todayAttendance = merged;
+          await StorageService.saveTodayAttendance(
+            dateStr,
+            jsonEncode(merged.toJson()),
+          );
+        }
+        await loadStats();
         _isLoading = false;
         notifyListeners();
         return true;
+      } catch (e) {
+        bool isPureNetworkError = false;
+        if (e is ApiException) {
+          if (e.isCertificateError) {
+            _errorMessage = e.message;
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+          if (e.isNetworkError) {
+            isPureNetworkError = true;
+          } else {
+            _errorMessage = e.message;
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+        } else if (e is SocketException || e is TimeoutException) {
+          isPureNetworkError = true;
+        }
+
+        if (isPureNetworkError && _isInsideGeofence) {
+          final offlineItem = {
+            'type': 'check_out',
+            'date': dateStr,
+            'time': timeStr,
+            'lat': lat,
+            'lng': lng,
+            'address': LocationService.ppkdAddress,
+            'gps_timestamp': pos.timestamp.toUtc().toIso8601String(),
+            'device_time': DateTime.now().toUtc().toIso8601String(),
+          };
+          offlineItem['checksum'] = StorageService.generateQueueChecksum(
+            offlineItem,
+          );
+          await StorageService.addOfflineAttendance(offlineItem);
+          _offlineQueue = StorageService.getOfflineQueue();
+          final existingCheckIn = _todayAttendance?.checkIn;
+          final existingCheckInTime = _todayAttendance?.checkInTime;
+          final localRecord = AttendanceModel(
+            id: _todayAttendance?.id,
+            userId: _todayAttendance?.userId,
+            attendanceDate: _todayAttendance?.attendanceDate ?? dateStr,
+            checkIn: existingCheckIn,
+            checkInTime: existingCheckInTime,
+            checkOut: timeStr,
+            checkOutTime: timeStr,
+            checkInLat: _todayAttendance?.checkInLat,
+            checkInLng: _todayAttendance?.checkInLng,
+            checkOutLat: lat,
+            checkOutLng: lng,
+            checkInAddress: _todayAttendance?.checkInAddress,
+            checkOutAddress: LocationService.ppkdAddress,
+            status: 'pulang',
+            alasanIzin: _todayAttendance?.alasanIzin,
+          );
+          _todayAttendance = localRecord;
+          await StorageService.saveTodayAttendance(
+            dateStr,
+            jsonEncode(localRecord.toJson()),
+          );
+          _errorMessage =
+              'Tersimpan offline di antrean lokal. Akan disinkronkan saat online.';
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        }
+
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    } catch (outerError) {
+      _errorMessage = outerError.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -405,12 +525,46 @@ class AttendanceProvider extends ChangeNotifier {
 
     for (final item in queue) {
       try {
+        final hasChecksum = item.containsKey('checksum');
+        if (hasChecksum && !StorageService.verifyQueueChecksum(item)) {
+          continue;
+        }
+
+        final gpsTimestampStr = item['gps_timestamp'] as String?;
+        DateTime? itemGpsTime;
+        if (gpsTimestampStr != null && gpsTimestampStr.isNotEmpty) {
+          itemGpsTime = DateTime.tryParse(gpsTimestampStr);
+        }
+
+        if (itemGpsTime != null) {
+          final nowUtc = DateTime.now().toUtc();
+          if (itemGpsTime.toUtc().isAfter(
+                nowUtc.add(const Duration(minutes: 2)),
+              )) {
+            continue;
+          }
+        }
+
         final type = item['type'] as String?;
-        final date = item['date'] as String? ?? DateFormatter.formatApiDate(DateTime.now());
-        final time = item['time'] as String? ?? DateFormatter.formatApiTime(DateTime.now());
-        final lat = (item['lat'] as num?)?.toDouble() ?? LocationService.ppkdLat;
-        final lng = (item['lng'] as num?)?.toDouble() ?? LocationService.ppkdLng;
-        final address = item['address'] as String? ?? LocationService.ppkdAddress;
+        String date =
+            item['date'] as String? ??
+            DateFormatter.formatApiDate(DateTime.now());
+        String time =
+            item['time'] as String? ??
+            DateFormatter.formatApiTime(DateTime.now());
+
+        if (itemGpsTime != null) {
+          final localGps = itemGpsTime.toLocal();
+          date = DateFormatter.formatApiDate(localGps);
+          time = DateFormatter.formatApiTime(localGps);
+        }
+
+        final lat =
+            (item['lat'] as num?)?.toDouble() ?? LocationService.ppkdLat;
+        final lng =
+            (item['lng'] as num?)?.toDouble() ?? LocationService.ppkdLng;
+        final address =
+            item['address'] as String? ?? LocationService.ppkdAddress;
 
         if (type == 'check_in') {
           await _repository.checkIn(
@@ -431,8 +585,11 @@ class AttendanceProvider extends ChangeNotifier {
           );
           syncedCount++;
         }
-      } catch (_) {
-        remainingQueue.add(item);
+      } catch (e) {
+        if (e is ApiException && !e.isNetworkError) {
+        } else {
+          remainingQueue.add(item);
+        }
       }
     }
 

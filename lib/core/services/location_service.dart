@@ -22,17 +22,8 @@ class LocationService {
   static Future<Position> getCurrentLocation() async {
     bool serviceEnabled = await isLocationServiceEnabled();
     if (!serviceEnabled) {
-      return Position(
-        longitude: ppkdLng,
-        latitude: ppkdLat,
-        timestamp: DateTime.now(),
-        accuracy: 5.0,
-        altitude: 10.0,
-        altitudeAccuracy: 1.0,
-        heading: 0.0,
-        headingAccuracy: 1.0,
-        speed: 0.0,
-        speedAccuracy: 1.0,
+      throw Exception(
+        'Layanan lokasi (GPS) tidak aktif. Silakan aktifkan GPS perangkat.',
       );
     }
 
@@ -40,57 +31,45 @@ class LocationService {
     if (permission == LocationPermission.denied) {
       permission = await requestPermission();
       if (permission == LocationPermission.denied) {
-        return Position(
-          longitude: ppkdLng,
-          latitude: ppkdLat,
-          timestamp: DateTime.now(),
-          accuracy: 5.0,
-          altitude: 10.0,
-          altitudeAccuracy: 1.0,
-          heading: 0.0,
-          headingAccuracy: 1.0,
-          speed: 0.0,
-          speedAccuracy: 1.0,
+        throw Exception(
+          'Izin akses lokasi ditolak. Berikan izin lokasi untuk melakukan presensi.',
         );
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      return Position(
-        longitude: ppkdLng,
-        latitude: ppkdLat,
-        timestamp: DateTime.now(),
-        accuracy: 5.0,
-        altitude: 10.0,
-        altitudeAccuracy: 1.0,
-        heading: 0.0,
-        headingAccuracy: 1.0,
-        speed: 0.0,
-        speedAccuracy: 1.0,
+      throw Exception(
+        'Izin akses lokasi ditolak permanen. Aktifkan izin lokasi melalui pengaturan aplikasi.',
       );
     }
 
+    Position position;
     try {
-      return await Geolocator.getCurrentPosition(
+      position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
+          timeLimit: Duration(seconds: 15),
         ),
       );
-    } catch (_) {
-      return Position(
-        longitude: ppkdLng,
-        latitude: ppkdLat,
-        timestamp: DateTime.now(),
-        accuracy: 5.0,
-        altitude: 10.0,
-        altitudeAccuracy: 1.0,
-        heading: 0.0,
-        headingAccuracy: 1.0,
-        speed: 0.0,
-        speedAccuracy: 1.0,
+    } catch (e) {
+      final lastPos = await Geolocator.getLastKnownPosition();
+      if (lastPos != null && !lastPos.isMocked) {
+        position = lastPos;
+      } else {
+        if (e is Exception) rethrow;
+        throw Exception(
+          'Gagal mendapatkan sinyal GPS akurat. Pastikan Anda berada di area terbuka.',
+        );
+      }
+    }
+
+    if (position.isMocked) {
+      throw Exception(
+        'Terdeteksi menggunakan Fake GPS / Lokasi Tiruan. Harap nonaktifkan Fake GPS dan gunakan sinyal GPS asli.',
       );
     }
+
+    return position;
   }
 
   static double getDistanceInMeters(double lat, double lng) {

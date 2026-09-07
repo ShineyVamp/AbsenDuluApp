@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:absendulu/core/services/storage_service.dart';
 import 'package:absendulu/core/network/api_exception.dart';
@@ -29,6 +30,16 @@ class ApiClient {
           }
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          final dateHeader = response.headers.value('date');
+          if (dateHeader != null && dateHeader.isNotEmpty) {
+            try {
+              final serverTime = HttpDate.parse(dateHeader);
+              StorageService.saveLastKnownServerTime(serverTime);
+            } catch (_) {}
+          }
+          return handler.next(response);
+        },
       ),
     );
   }
@@ -38,7 +49,20 @@ class ApiClient {
     int? statusCode = e.response?.statusCode;
     dynamic errors;
 
-    if (e.response?.data != null && e.response?.data is Map<String, dynamic>) {
+    final isCertError = e.type == DioExceptionType.badCertificate ||
+        e.error.toString().toLowerCase().contains('handshake') ||
+        e.error.toString().contains('CERTIFICATE_VERIFY_FAILED') ||
+        (e.message?.contains('CERTIFICATE_VERIFY_FAILED') ?? false);
+    final isNetError = !isCertError &&
+        (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.connectionError ||
+            e.error is SocketException);
+
+    if (isCertError) {
+      errorMessage = 'Gagal verifikasi keamanan (SSL/TLS). Waktu perangkat tidak sesuai, periksa tanggal dan jam Anda.';
+    } else if (e.response?.data != null && e.response?.data is Map<String, dynamic>) {
       final body = e.response!.data as Map<String, dynamic>;
       if (body.containsKey('message') && body['message'] != null) {
         errorMessage = body['message'].toString();
@@ -66,6 +90,8 @@ class ApiClient {
       message: errorMessage,
       statusCode: statusCode,
       errors: errors,
+      isCertificateError: isCertError,
+      isNetworkError: isNetError,
     );
   }
 

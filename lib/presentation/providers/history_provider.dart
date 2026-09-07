@@ -9,17 +9,23 @@ class HistoryProvider extends ChangeNotifier {
   final AttendanceRepository _repository = AttendanceRepository();
 
   List<AttendanceModel> _historyList = [];
+  List<AttendanceModel> _currentMonthHistoryList = [];
   bool _isLoading = false;
   String? _errorMessage;
   DateTime _currentMonth = DateTime.now();
 
   List<AttendanceModel> get historyList => _historyList;
+  List<AttendanceModel> get currentMonthHistoryList =>
+      _currentMonthHistoryList.isNotEmpty
+          ? _currentMonthHistoryList
+          : _historyList;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   DateTime get currentMonth => _currentMonth;
 
   HistoryProvider() {
     _initHistory();
+    refreshCurrentMonth();
     loadHistory(isBackgroundRefresh: _historyList.isNotEmpty);
   }
 
@@ -28,6 +34,18 @@ class HistoryProvider extends ChangeNotifier {
   }
 
   void _initHistory() {
+    final now = DateTime.now();
+    final currentKey = _getMonthKey(now);
+    final currentCached = StorageService.getHistory(currentKey);
+    if (currentCached != null && currentCached.isNotEmpty) {
+      try {
+        final list = jsonDecode(currentCached) as List;
+        _currentMonthHistoryList = list
+            .map((e) => AttendanceModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } catch (_) {}
+    }
+
     final key = _getMonthKey(_currentMonth);
     final cached = StorageService.getHistory(key);
     if (cached != null && cached.isNotEmpty) {
@@ -40,7 +58,33 @@ class HistoryProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshHistory() async {
+  Future<void> refreshCurrentMonth() async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    final end = DateTime(now.year, now.month + 1, 0);
+    final key = _getMonthKey(now);
+
+    try {
+      final fresh = await _repository.getHistory(
+        startDate: DateFormatter.formatApiDate(start),
+        endDate: DateFormatter.formatApiDate(end),
+      );
+      _currentMonthHistoryList = fresh;
+      if (_currentMonth.year == now.year && _currentMonth.month == now.month) {
+        _historyList = fresh;
+      }
+      await StorageService.saveHistory(
+        key,
+        jsonEncode(fresh.map((e) => e.toJson()).toList()),
+      );
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> refreshHistory({DateTime? month}) async {
+    if (month != null) {
+      _currentMonth = month;
+    }
     final key = _getMonthKey(_currentMonth);
     if (_historyList.isEmpty) {
       final cached = StorageService.getHistory(key);
@@ -54,10 +98,13 @@ class HistoryProvider extends ChangeNotifier {
         } catch (_) {}
       }
     }
-    await loadHistory(isBackgroundRefresh: _historyList.isNotEmpty);
+    await loadHistory(month: month, isBackgroundRefresh: _historyList.isNotEmpty);
   }
 
-  Future<void> loadHistory({bool isBackgroundRefresh = false}) async {
+  Future<void> loadHistory({DateTime? month, bool isBackgroundRefresh = false}) async {
+    if (month != null) {
+      _currentMonth = month;
+    }
     if (!isBackgroundRefresh && _historyList.isEmpty) {
       _isLoading = true;
       notifyListeners();

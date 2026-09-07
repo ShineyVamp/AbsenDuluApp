@@ -46,30 +46,43 @@ class DashboardScreen extends StatelessWidget {
         (historyProv.isLoading && historyProv.historyList.isEmpty);
     final bool isDashboardLoading = isTodayLoading || isStatsLoading;
 
-    final totalTerlambat = historyProv.historyList
+    final now = DateTime.now();
+    final currentYearMonth =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final currentMonthRecords = historyProv.currentMonthHistoryList.where((
+      item,
+    ) {
+      if (item.attendanceDate != null && item.attendanceDate!.isNotEmpty) {
+        return item.attendanceDate!.startsWith(currentYearMonth);
+      }
+      return true;
+    }).toList();
+
+    final totalTerlambat = currentMonthRecords
         .where(
           (item) =>
               item.effectiveStatus == 'terlambat' ||
               item.effectiveStatus == 'telat',
         )
         .length;
-    final totalHadirFromHistory = historyProv.historyList
+    final totalHadirFromHistory = currentMonthRecords
         .where(
           (item) =>
               item.effectiveStatus == 'hadir' ||
               item.effectiveStatus == 'masuk',
         )
         .length;
-    final totalHadir = historyProv.historyList.isNotEmpty
+    final totalHadir = currentMonthRecords.isNotEmpty
         ? totalHadirFromHistory
         : (stats.totalMasuk >= totalTerlambat
               ? (stats.totalMasuk - totalTerlambat)
               : stats.totalMasuk);
-    final totalIzin = stats.totalIzin > 0
-        ? stats.totalIzin
-        : historyProv.historyList
-              .where((item) => item.effectiveStatus == 'izin')
-              .length;
+    final totalIzinFromHistory = currentMonthRecords
+        .where((item) => item.isIzin || item.effectiveStatus == 'izin')
+        .length;
+    final totalIzin = currentMonthRecords.isNotEmpty
+        ? totalIzinFromHistory
+        : stats.totalIzin;
 
     final isIzin = today != null && today.isIzin;
     final hasCheckedIn = today != null && today.isCheckedIn;
@@ -185,8 +198,11 @@ class DashboardScreen extends StatelessWidget {
     void handleAttendanceTap() async {
       if (isTodayLoading) return;
       await context.push(GpsVerificationScreen(isCheckIn: isCheckInAction));
-      await attendance.loadTodayAttendance();
-      await attendance.loadStats();
+      await Future.wait([
+        attendance.loadTodayAttendance(),
+        attendance.loadStats(),
+        historyProv.refreshCurrentMonth(),
+      ]);
     }
 
     final String hourMinuteStr;
@@ -204,7 +220,12 @@ class DashboardScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () => attendance.initDashboard(),
+          onRefresh: () async {
+            await Future.wait([
+              attendance.initDashboard(),
+              historyProv.refreshCurrentMonth(),
+            ]);
+          },
           color: AppColors.primary,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
@@ -329,6 +350,10 @@ class DashboardScreen extends StatelessWidget {
                                   .syncOfflineAttendance();
                               if (context.mounted) {
                                 if (count > 0) {
+                                  await Future.wait([
+                                    attendance.loadStats(),
+                                    historyProv.refreshCurrentMonth(),
+                                  ]);
                                   CustomSnackBar.showSuccess(
                                     context,
                                     '$count presensi offline berhasil disinkronkan',
@@ -348,115 +373,6 @@ class DashboardScreen extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  if (showMorningReminder) ...[
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.alarm_rounded,
-                              size: 18,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Pengingat Presensi Masuk',
-                                  style: TextStyle(
-                                    fontSize: 12.5 * fontScale,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Batas absen masuk pukul ${DateFormatter.formatTimeString('08:00', isRoman: theme.isRomanClock)} WIB. Segera lakukan presensi di area PPKD.',
-                                  style: TextStyle(
-                                    fontSize: 11 * fontScale,
-                                    color: isDark
-                                        ? AppColors.textMediumDark
-                                        : AppColors.textMedium,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else if (showAfternoonReminder) ...[
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.success.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.alarm_on_rounded,
-                              size: 18,
-                              color: AppColors.success,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Pengingat Presensi Pulang',
-                                  style: TextStyle(
-                                    fontSize: 12.5 * fontScale,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.success,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Jam belajar hari ini telah selesai. Jangan lupa lakukan presensi pulang.',
-                                  style: TextStyle(
-                                    fontSize: 11 * fontScale,
-                                    color: isDark
-                                        ? AppColors.textMediumDark
-                                        : AppColors.textMedium,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ],
@@ -807,11 +723,18 @@ class DashboardScreen extends StatelessWidget {
                   NeumorphicCard(
                     borderRadius: 22,
                     padding: const EdgeInsets.all(18),
-                    onTap: () {
-                      showDialog(
+                    onTap: () async {
+                      await showDialog(
                         context: context,
                         builder: (_) => const LeaveRequestDialog(),
                       );
+                      if (context.mounted) {
+                        await Future.wait([
+                          attendance.loadTodayAttendance(),
+                          attendance.loadStats(),
+                          historyProv.refreshCurrentMonth(),
+                        ]);
+                      }
                     },
                     child: Row(
                       children: [
@@ -929,6 +852,17 @@ class DashboardScreen extends StatelessWidget {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'bulan ini',
+                          style: TextStyle(
+                            fontSize: 11.5 * fontScale,
+                            fontWeight: FontWeight.w400,
+                            color: isDark
+                                ? AppColors.textMediumDark
+                                : AppColors.textMedium,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         Row(
