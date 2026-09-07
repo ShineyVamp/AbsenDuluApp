@@ -54,4 +54,24 @@ class DateFormatter {
   static String formatShortDate(DateTime date) {
     return DateFormat('dd MMM yyyy').format(date);
   }
+
+  static String formatIndonesianDateString(
+    String? dateStr, {
+    String fallback = 'Presensi',
+  }) {
+    if (dateStr == null || dateStr.trim().isEmpty) {
+      return fallback;
+    }
+    try {
+      final trimmed = dateStr.trim();
+      final dateOnly =
+          trimmed.contains(' ') ? trimmed.split(' ').first : trimmed;
+      final parsed = DateTime.tryParse(dateOnly);
+      if (parsed != null) {
+        return formatIndonesianDate(parsed);
+      }
+    } catch (_) {}
+    return dateStr;
+  }
 }
+

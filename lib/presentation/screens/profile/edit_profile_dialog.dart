@@ -32,7 +32,6 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   dynamic _selectedTrainingId;
   List<BatchModel> _batches = [];
   List<TrainingModel> _trainings = [];
-  bool _isLoadingMaster = true;
 
   @override
   void initState() {
@@ -61,14 +60,9 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
         setState(() {
           _batches = batches;
           _trainings = trainings;
-          _isLoadingMaster = false;
         });
       }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _isLoadingMaster = false);
-      }
-    }
+    } catch (_) {}
   }
 
   String _getBatchName(UserModel? user) {

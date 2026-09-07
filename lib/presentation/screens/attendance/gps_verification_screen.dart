@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+// import 'package:flutter_map/flutter_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart';
+// import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:absendulu/core/constants/app_colors.dart';
 import 'package:absendulu/core/services/location_service.dart';
@@ -11,6 +12,7 @@ import 'package:absendulu/presentation/providers/auth_provider.dart';
 import 'package:absendulu/presentation/widgets/custom_snackbar.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_button.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
+import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 
 class GpsVerificationScreen extends StatefulWidget {
   final bool isCheckIn;
@@ -22,7 +24,8 @@ class GpsVerificationScreen extends StatefulWidget {
 }
 
 class _GpsVerificationScreenState extends State<GpsVerificationScreen> {
-  final MapController _mapController = MapController();
+  // final MapController _mapController = MapController();
+  GoogleMapController? _googleMapController;
 
   @override
   void initState() {
@@ -30,6 +33,12 @@ class _GpsVerificationScreenState extends State<GpsVerificationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AttendanceProvider>(context, listen: false).updateLocation();
     });
+  }
+
+  @override
+  void dispose() {
+    _googleMapController?.dispose();
+    super.dispose();
   }
 
   Future<void> _handleConfirmAttendance() async {
@@ -207,27 +216,22 @@ class _GpsVerificationScreenState extends State<GpsVerificationScreen> {
           'Verifikasi Lokasi',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDark ? AppColors.cardBgDark : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.arrow_back_rounded,
-                size: 20,
+        leadingWidth: 68,
+        leading: Center(
+          child: GestureDetector(
+            onTap: () => context.pop(),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: NeumorphicDecorations.extrudedSm(
+                isDark: isDark,
+                borderRadius: 12,
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
                 color: isDark ? AppColors.textHighDark : AppColors.textHigh,
               ),
-              onPressed: () => context.pop(),
             ),
           ),
         ),
@@ -250,6 +254,54 @@ class _GpsVerificationScreenState extends State<GpsVerificationScreen> {
                         borderRadius: BorderRadius.circular(24),
                         child: Stack(
                           children: [
+                            GoogleMap(
+                              initialCameraPosition: CameraPosition(
+                                target: userLatLng,
+                                zoom: 17.0,
+                              ),
+                              onMapCreated: (controller) {
+                                _googleMapController = controller;
+                              },
+                              myLocationEnabled: true,
+                              myLocationButtonEnabled: false,
+                              zoomControlsEnabled: false,
+                              mapToolbarEnabled: false,
+                              compassEnabled: false,
+                              circles: {
+                                Circle(
+                                  circleId: const CircleId('geofence_ppkd'),
+                                  center: ppkdLatLng,
+                                  radius: LocationService.geofenceRadius,
+                                  fillColor: const Color(0xFF2C54D8).withValues(alpha: 0.12),
+                                  strokeColor: const Color(0xFF2C54D8),
+                                  strokeWidth: 2,
+                                ),
+                              },
+                              markers: {
+                                Marker(
+                                  markerId: const MarkerId('marker_ppkd'),
+                                  position: ppkdLatLng,
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueAzure,
+                                  ),
+                                  infoWindow: const InfoWindow(
+                                    title: 'PPKD Jakarta Pusat',
+                                    snippet: 'Radius Presensi 300m',
+                                  ),
+                                ),
+                                Marker(
+                                  markerId: const MarkerId('marker_user'),
+                                  position: userLatLng,
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueGreen,
+                                  ),
+                                  infoWindow: const InfoWindow(
+                                    title: 'Posisi Anda',
+                                  ),
+                                ),
+                              },
+                            ),
+                            /*
                             FlutterMap(
                               mapController: _mapController,
                               options: MapOptions(
@@ -384,6 +436,7 @@ class _GpsVerificationScreenState extends State<GpsVerificationScreen> {
                                 ),
                               ],
                             ),
+                            */
                             Positioned(
                               top: 12,
                               left: 12,
@@ -431,7 +484,15 @@ class _GpsVerificationScreenState extends State<GpsVerificationScreen> {
                                 children: [
                                   InkWell(
                                     onTap: () {
-                                      _mapController.move(userLatLng, 17.5);
+                                      // _mapController.move(userLatLng, 17.5);
+                                      _googleMapController?.animateCamera(
+                                        CameraUpdate.newCameraPosition(
+                                          CameraPosition(
+                                            target: userLatLng,
+                                            zoom: 17.5,
+                                          ),
+                                        ),
+                                      );
                                     },
                                     child: Container(
                                       width: 38,

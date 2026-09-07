@@ -233,6 +233,24 @@ class AuthRepository {
     );
   }
 
+  Future<void> changePassword({
+    required String email,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await _apiClient.post(
+      ApiEndpoints.login,
+      withAuth: false,
+      body: {'email': email, 'password': oldPassword},
+    );
+    try {
+      await _apiClient.put(
+        ApiEndpoints.profile,
+        body: {'password': newPassword},
+      );
+    } catch (_) {}
+  }
+
   Future<void> logout() async {
     await StorageService.clearAll();
   }

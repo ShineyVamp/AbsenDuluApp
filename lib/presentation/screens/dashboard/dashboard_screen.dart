@@ -1,16 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:absendulu/core/constants/app_colors.dart';
+import 'package:absendulu/core/services/storage_service.dart';
 import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/core/utils/date_formatter.dart';
 import 'package:absendulu/extensions/navigation.dart';
-import 'package:absendulu/presentation/screens/attendance/gps_verification_screen.dart';
-import 'package:absendulu/presentation/screens/attendance/leave_request_dialog.dart';
 import 'package:absendulu/presentation/providers/attendance_provider.dart';
 import 'package:absendulu/presentation/providers/auth_provider.dart';
+import 'package:absendulu/presentation/providers/history_provider.dart';
 import 'package:absendulu/presentation/providers/theme_provider.dart';
+import 'package:absendulu/presentation/screens/attendance/gps_verification_screen.dart';
+import 'package:absendulu/presentation/screens/attendance/leave_request_dialog.dart';
+import 'package:absendulu/presentation/screens/dashboard/attendance_stats_detail_screen.dart';
+import 'package:absendulu/presentation/widgets/custom_snackbar.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -20,6 +24,7 @@ class DashboardScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = Provider.of<AuthProvider>(context);
     final attendance = Provider.of<AttendanceProvider>(context);
+    final historyProv = Provider.of<HistoryProvider>(context);
     final theme = Provider.of<ThemeProvider>(context);
 
     final screenWidth = MediaQuery.sizeOf(context).width;
@@ -31,6 +36,31 @@ class DashboardScreen extends StatelessWidget {
     final stats = attendance.stats;
     final today = attendance.todayAttendance;
 
+    final totalTerlambat = historyProv.historyList
+        .where(
+          (item) =>
+              item.effectiveStatus == 'terlambat' ||
+              item.effectiveStatus == 'telat',
+        )
+        .length;
+    final totalHadirFromHistory = historyProv.historyList
+        .where(
+          (item) =>
+              item.effectiveStatus == 'hadir' ||
+              item.effectiveStatus == 'masuk',
+        )
+        .length;
+    final totalHadir = historyProv.historyList.isNotEmpty
+        ? totalHadirFromHistory
+        : (stats.totalMasuk >= totalTerlambat
+              ? (stats.totalMasuk - totalTerlambat)
+              : stats.totalMasuk);
+    final totalIzin = stats.totalIzin > 0
+        ? stats.totalIzin
+        : historyProv.historyList
+              .where((item) => item.effectiveStatus == 'izin')
+              .length;
+
     final isIzin = today != null && today.isIzin;
     final hasCheckedIn = today != null && today.isCheckedIn;
     final hasCheckedOut = today != null && today.isCheckedOut;
@@ -39,6 +69,22 @@ class DashboardScreen extends StatelessWidget {
         (attendance.currentTime.hour == 8 &&
             (attendance.currentTime.minute > 0 ||
                 attendance.currentTime.second > 0));
+
+    final bool reminderInEnabled = StorageService.getReminderCheckIn();
+    final bool reminderOutEnabled = StorageService.getReminderCheckOut();
+    final int currentHour = attendance.currentTime.hour;
+    final int currentMinute = attendance.currentTime.minute;
+    final bool isMorningReminderTime =
+        (currentHour == 7 && currentMinute >= 30) ||
+        (currentHour == 8 && currentMinute <= 15);
+    final bool isAfternoonReminderTime = currentHour >= 15;
+    final bool showMorningReminder =
+        reminderInEnabled && !hasCheckedIn && isMorningReminderTime;
+    final bool showAfternoonReminder =
+        reminderOutEnabled &&
+        hasCheckedIn &&
+        !hasCheckedOut &&
+        isAfternoonReminderTime;
 
     Color buttonColor;
     String mainButtonText = 'Absen';
@@ -183,6 +229,219 @@ class DashboardScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 18),
+                    if (attendance.hasPendingOffline) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFEA580C,
+                          ).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFEA580C,
+                            ).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFEA580C,
+                                ).withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cloud_off_rounded,
+                                size: 18,
+                                color: Color(0xFFEA580C),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${attendance.pendingOfflineCount} Presensi Belum Sinkron',
+                                    style: TextStyle(
+                                      fontSize: 12.5 * fontScale,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFFEA580C),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Tersimpan offline. Sinkronkan sekarang ke server.',
+                                    style: TextStyle(
+                                      fontSize: 11 * fontScale,
+                                      color: isDark
+                                          ? AppColors.textMediumDark
+                                          : AppColors.textMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFEA580C),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 0,
+                              ),
+                              onPressed: () async {
+                                final count = await attendance
+                                    .syncOfflineAttendance();
+                                if (context.mounted) {
+                                  if (count > 0) {
+                                    CustomSnackBar.showSuccess(
+                                      context,
+                                      '$count presensi offline berhasil disinkronkan',
+                                    );
+                                  } else {
+                                    CustomSnackBar.showWarning(
+                                      context,
+                                      'Tidak dapat terhubung ke server',
+                                    );
+                                  }
+                                }
+                              },
+                              child: const Text(
+                                'Sync',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (showMorningReminder) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.15,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.alarm_rounded,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pengingat Presensi Masuk',
+                                    style: TextStyle(
+                                      fontSize: 12.5 * fontScale,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Batas absen masuk pukul 08:00 WIB. Segera lakukan presensi di area PPKD.',
+                                    style: TextStyle(
+                                      fontSize: 11 * fontScale,
+                                      color: isDark
+                                          ? AppColors.textMediumDark
+                                          : AppColors.textMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else if (showAfternoonReminder) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.success.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withValues(
+                                  alpha: 0.15,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.alarm_on_rounded,
+                                size: 18,
+                                color: AppColors.success,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pengingat Presensi Pulang',
+                                    style: TextStyle(
+                                      fontSize: 12.5 * fontScale,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Jam belajar hari ini telah selesai. Jangan lupa lakukan presensi pulang.',
+                                    style: TextStyle(
+                                      fontSize: 11 * fontScale,
+                                      color: isDark
+                                          ? AppColors.textMediumDark
+                                          : AppColors.textMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     NeumorphicCard(
                       borderRadius: 24,
                       padding: const EdgeInsets.symmetric(
@@ -191,55 +450,24 @@ class DashboardScreen extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: attendance.isInsideGeofence
-                                  ? (isDark
-                                        ? const Color(
-                                            0xFF064E3B,
-                                          ).withValues(alpha: 0.4)
-                                        : const Color(0xFFE6F8F0))
-                                  : (isDark
-                                        ? const Color(
-                                            0xFF7F1D1D,
-                                          ).withValues(alpha: 0.4)
-                                        : const Color(0xFFFEF2F2)),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  attendance.isInsideGeofence
+                                      ? 'Lokasi Sesuai: Radius ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus'
+                                      : 'Di Luar Radius: ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus (Maks 300m)',
+                                  style: TextStyle(
+                                    fontSize: 12 * fontScale,
+                                    fontWeight: FontWeight.w700,
                                     color: attendance.isInsideGeofence
                                         ? const Color(0xFF10B981)
                                         : const Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    attendance.isInsideGeofence
-                                        ? 'Lokasi Sesuai: Radius ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus'
-                                        : 'Di Luar Radius: ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus (Maks 300m)',
-                                    style: TextStyle(
-                                      fontSize: 12 * fontScale,
-                                      fontWeight: FontWeight.w700,
-                                      color: attendance.isInsideGeofence
-                                          ? const Color(0xFF10B981)
-                                          : const Color(0xFFEF4444),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           Row(
@@ -388,20 +616,10 @@ class DashboardScreen extends StatelessWidget {
                                     children: [
                                       Row(
                                         children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: BoxDecoration(
-                                              color: const Color(
-                                                0xFF10B981,
-                                              ).withValues(alpha: 0.15),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: const Icon(
-                                              Icons.login_rounded,
-                                              size: 16,
-                                              color: Color(0xFF10B981),
-                                            ),
+                                          const Icon(
+                                            Icons.login_rounded,
+                                            size: 16,
+                                            color: Color(0xFF10B981),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
@@ -457,20 +675,10 @@ class DashboardScreen extends StatelessWidget {
                                     children: [
                                       Row(
                                         children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: BoxDecoration(
-                                              color: const Color(
-                                                0xFF2C54D8,
-                                              ).withValues(alpha: 0.15),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: const Icon(
-                                              Icons.logout_rounded,
-                                              size: 16,
-                                              color: Color(0xFF2C54D8),
-                                            ),
+                                          const Icon(
+                                            Icons.logout_rounded,
+                                            size: 16,
+                                            color: Color(0xFF2C54D8),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
@@ -547,7 +755,7 @@ class DashboardScreen extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    'Ajukan surat izin atau keterangan sakit',
+                                    'Ajukan izin',
                                     style: TextStyle(
                                       fontSize: 11 * fontScale,
                                       color: isDark
@@ -589,30 +797,51 @@ class DashboardScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF2C54D8,
-                                  ).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.bar_chart_rounded,
-                                  size: 20,
-                                  color: Color(0xFF2C54D8),
-                                ),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.bar_chart_rounded,
+                                    size: 20,
+                                    color: Color(0xFF2C54D8),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Statistik Kehadiran',
+                                    style: TextStyle(
+                                      fontSize: 16 * fontScale,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? AppColors.textHighDark
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Statistik Kehadiran',
-                                style: TextStyle(
-                                  fontSize: 16 * fontScale,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? AppColors.textHighDark
-                                      : const Color(0xFF0F172A),
+                              InkWell(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const AttendanceStatsDetailScreen(),
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    'Detail',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2C54D8),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -628,34 +857,23 @@ class DashboardScreen extends StatelessWidget {
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 14,
-                                    horizontal: 8,
+                                    horizontal: 6,
                                   ),
                                   child: Column(
                                     children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const CircleAvatar(
-                                            radius: 3.5,
-                                            backgroundColor: Color(0xFF10B981),
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            'Hadir',
-                                            style: TextStyle(
-                                              fontSize: 12 * fontScale,
-                                              fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF10B981),
-                                            ),
-                                          ),
-                                        ],
+                                      Text(
+                                        'Hadir',
+                                        style: TextStyle(
+                                          fontSize: 11.5 * fontScale,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF10B981),
+                                        ),
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        '${stats.totalMasuk}',
+                                        '$totalHadir',
                                         style: TextStyle(
-                                          fontSize: 24 * fontScale,
+                                          fontSize: 22 * fontScale,
                                           fontWeight: FontWeight.w900,
                                           color: isDark
                                               ? AppColors.textHighDark
@@ -664,11 +882,160 @@ class DashboardScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${stats.attendancePercentage.toStringAsFixed(1)}%',
+                                        '$totalHadir Hari',
                                         style: TextStyle(
-                                          fontSize: 11 * fontScale,
+                                          fontSize: 10.5 * fontScale,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textMediumDark
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  decoration: NeumorphicDecorations.extrudedSm(
+                                    isDark: isDark,
+                                    borderRadius: 16,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 6,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Terlambat',
+                                        style: TextStyle(
+                                          fontSize: 11.5 * fontScale,
                                           fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF10B981),
+                                          color: const Color(0xFFEA580C),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '$totalTerlambat',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '$totalTerlambat Hari',
+                                        style: TextStyle(
+                                          fontSize: 10.5 * fontScale,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textMediumDark
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  decoration: NeumorphicDecorations.extrudedSm(
+                                    isDark: isDark,
+                                    borderRadius: 16,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 6,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Izin',
+                                        style: TextStyle(
+                                          fontSize: 11.5 * fontScale,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFF59E0B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '$totalIzin',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '$totalIzin Hari',
+                                        style: TextStyle(
+                                          fontSize: 10.5 * fontScale,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textMediumDark
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  decoration: NeumorphicDecorations.extrudedSm(
+                                    isDark: isDark,
+                                    borderRadius: 16,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 10,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Jumlah Masuk',
+                                        style: TextStyle(
+                                          fontSize: 11.5 * fontScale,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${stats.totalMasuk}',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Total Sesi Hadir',
+                                        style: TextStyle(
+                                          fontSize: 10.5 * fontScale,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textMediumDark
+                                              : const Color(0xFF64748B),
                                         ),
                                       ),
                                     ],
@@ -684,34 +1051,25 @@ class DashboardScreen extends StatelessWidget {
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 14,
-                                    horizontal: 8,
+                                    horizontal: 10,
                                   ),
                                   child: Column(
                                     children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const CircleAvatar(
-                                            radius: 3.5,
-                                            backgroundColor: Color(0xFFF59E0B),
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            'Izin',
-                                            style: TextStyle(
-                                              fontSize: 12 * fontScale,
-                                              fontWeight: FontWeight.w700,
-                                              color: const Color(0xFFF59E0B),
-                                            ),
-                                          ),
-                                        ],
+                                      Text(
+                                        'Persentase Hadir',
+                                        style: TextStyle(
+                                          fontSize: 11.5 * fontScale,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        '${stats.totalIzin}',
+                                        '${stats.attendancePercentage.toStringAsFixed(1)}%',
                                         style: TextStyle(
-                                          fontSize: 24 * fontScale,
+                                          fontSize: 22 * fontScale,
                                           fontWeight: FontWeight.w900,
                                           color: isDark
                                               ? AppColors.textHighDark
@@ -720,10 +1078,10 @@ class DashboardScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${stats.totalIzin} Hari',
+                                        'Kehadiran',
                                         style: TextStyle(
-                                          fontSize: 11 * fontScale,
-                                          fontWeight: FontWeight.w600,
+                                          fontSize: 10.5 * fontScale,
+                                          fontWeight: FontWeight.w700,
                                           color: isDark
                                               ? AppColors.textMediumDark
                                               : const Color(0xFF64748B),
@@ -733,72 +1091,12 @@ class DashboardScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // card alfa gatau pake apa ngak
-                              // const SizedBox(width: 10),
-                              // Expanded(
-                              //   child: Container(
-                              //     decoration: NeumorphicDecorations.extrudedSm(
-                              //       isDark: isDark,
-                              //       borderRadius: 16,
-                              //     ),
-                              //     padding: const EdgeInsets.symmetric(
-                              //       vertical: 14,
-                              //       horizontal: 8,
-                              //     ),
-                              //     child: Column(
-                              //       children: [
-                              //         Row(
-                              //           mainAxisAlignment:
-                              //               MainAxisAlignment.center,
-                              //           children: [
-                              //             const CircleAvatar(
-                              //               radius: 3.5,
-                              //               backgroundColor: Color(0xFFEF4444),
-                              //             ),
-                              //             const SizedBox(width: 5),
-                              //             Text(
-                              //               'Alfa',
-                              //               style: TextStyle(
-                              //                 fontSize: 12 * fontScale,
-                              //                 fontWeight: FontWeight.w700,
-                              //                 color: const Color(0xFFEF4444),
-                              //               ),
-                              //             ),
-                              //           ],
-                              //         ),
-                              //         const SizedBox(height: 6),
-                              //         Text(
-                              //           '${stats.totalAlfa}',
-                              //           style: TextStyle(
-                              //             fontSize: 24 * fontScale,
-                              //             fontWeight: FontWeight.w900,
-                              //             color: isDark
-                              //                 ? AppColors.textHighDark
-                              //                 : const Color(0xFF0F172A),
-                              //           ),
-                              //         ),
-                              //         const SizedBox(height: 4),
-                              //         Text(
-                              //           stats.totalAlfa == 0
-                              //               ? 'Nol Absen'
-                              //               : '${stats.totalAlfa} Hari',
-                              //           style: TextStyle(
-                              //             fontSize: 11 * fontScale,
-                              //             fontWeight: FontWeight.w700,
-                              //             color: stats.totalAlfa == 0
-                              //                 ? const Color(0xFF0D9488)
-                              //                 : const Color(0xFFEF4444),
-                              //           ),
-                              //         ),
-                              //       ],
-                              //     ),
-                              //   ),
-                              // ),
                             ],
                           ),
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 24),
                   ],
                 ),

@@ -14,8 +14,11 @@ import 'package:absendulu/presentation/providers/theme_provider.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_button.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
+import 'package:absendulu/core/services/storage_service.dart';
 import 'package:absendulu/data/models/user_model.dart';
 import 'package:absendulu/presentation/screens/profile/edit_profile_dialog.dart';
+import 'package:absendulu/presentation/screens/profile/change_password_dialog.dart';
+import 'package:absendulu/presentation/screens/auth/forgot_password_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -30,12 +33,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<TrainingModel> _trainings = [];
   bool _isLoading = true;
 
+  bool _reminderInEnabled = true;
+  bool _reminderOutEnabled = true;
+  String _reminderInTime = '07:45';
+  String _reminderOutTime = '15:00';
+
   @override
   void initState() {
     super.initState();
+    _reminderInEnabled = StorageService.getReminderCheckIn();
+    _reminderOutEnabled = StorageService.getReminderCheckOut();
+    _reminderInTime = StorageService.getReminderCheckInTime();
+    _reminderOutTime = StorageService.getReminderCheckOutTime();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllData();
     });
+  }
+
+  Future<void> _pickReminderTime({required bool isCheckIn}) async {
+    final currentTimeStr = isCheckIn ? _reminderInTime : _reminderOutTime;
+    final parts = currentTimeStr.split(':');
+    final initialHour = int.tryParse(parts[0]) ?? (isCheckIn ? 7 : 15);
+    final initialMinute = parts.length > 1
+        ? (int.tryParse(parts[1]) ?? (isCheckIn ? 45 : 0))
+        : 0;
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: initialHour, minute: initialMinute),
+    );
+
+    if (picked != null) {
+      final formatted =
+          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      setState(() {
+        if (isCheckIn) {
+          _reminderInTime = formatted;
+          StorageService.setReminderCheckInTime(formatted);
+        } else {
+          _reminderOutTime = formatted;
+          StorageService.setReminderCheckOutTime(formatted);
+        }
+      });
+    }
   }
 
   Future<void> _loadAllData() async {
@@ -565,6 +605,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
                           _buildDivider(isDark),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => const ChangePasswordDialog(),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.vpn_key_rounded,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Ganti Password',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : AppColors.textHigh,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                    color: isDark
+                                        ? AppColors.textLowDark
+                                        : AppColors.textLow,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          _buildDivider(isDark),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => ForgotPasswordDialog(
+                                  initialEmail: user?.email,
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.lock_reset_rounded,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Lupa Password',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : AppColors.textHigh,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 20,
+                                    color: isDark
+                                        ? AppColors.textLowDark
+                                        : AppColors.textLow,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          _buildDivider(isDark),
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
@@ -601,6 +735,128 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Pengingat Presensi',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textHighDark
+                            : AppColors.textHigh,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    NeumorphicCard(
+                      borderRadius: 16,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.alarm_rounded,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Pengingat Masuk',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : AppColors.textHigh,
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () => _pickReminderTime(isCheckIn: true),
+                                        child: Text(
+                                          'Waktu: $_reminderInTime WIB',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Switch(
+                                value: _reminderInEnabled,
+                                activeThumbColor: AppColors.primary,
+                                onChanged: (val) {
+                                  setState(() => _reminderInEnabled = val);
+                                  StorageService.setReminderCheckIn(val);
+                                },
+                              ),
+                            ],
+                          ),
+                          _buildDivider(isDark),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.alarm_on_rounded,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Pengingat Pulang',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : AppColors.textHigh,
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () => _pickReminderTime(isCheckIn: false),
+                                        child: Text(
+                                          'Waktu: $_reminderOutTime WIB',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Switch(
+                                value: _reminderOutEnabled,
+                                activeThumbColor: AppColors.primary,
+                                onChanged: (val) {
+                                  setState(() => _reminderOutEnabled = val);
+                                  StorageService.setReminderCheckOut(val);
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),

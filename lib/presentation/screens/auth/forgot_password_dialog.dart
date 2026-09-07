@@ -8,18 +8,26 @@ import 'package:absendulu/presentation/widgets/neumorphic_button.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_text_field.dart';
 
 class ForgotPasswordDialog extends StatefulWidget {
-  const ForgotPasswordDialog({super.key});
+  final String? initialEmail;
+
+  const ForgotPasswordDialog({super.key, this.initialEmail});
 
   @override
   State<ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
 }
 
 class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
-  final TextEditingController _emailController = TextEditingController();
+  late final TextEditingController _emailController;
   final TextEditingController _otpController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
   bool _otpSent = false;
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail ?? '');
+  }
 
   @override
   void dispose() {
@@ -29,7 +37,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     super.dispose();
   }
 
-  Future<void> _handleSendOtp() async {
+  Future<void> _handleSendOtp({bool isResend = false}) async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       CustomSnackBar.showError(context, 'Masukkan email terdaftar');
@@ -41,8 +49,15 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     if (!mounted) return;
 
     if (success) {
-      CustomSnackBar.showSuccess(context, 'Kode OTP telah dikirim ke email');
-      setState(() => _otpSent = true);
+      CustomSnackBar.showSuccess(
+        context,
+        isResend
+            ? 'Kode OTP baru telah dikirim ke email'
+            : 'Kode OTP telah dikirim ke email',
+      );
+      if (!_otpSent) {
+        setState(() => _otpSent = true);
+      }
     } else {
       CustomSnackBar.showError(
         context,
@@ -58,6 +73,11 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
 
     if (otp.isEmpty || newPass.isEmpty) {
       CustomSnackBar.showError(context, 'Lengkapi kode OTP dan password baru');
+      return;
+    }
+
+    if (newPass.length < 6) {
+      CustomSnackBar.showError(context, 'Password baru minimal 6 karakter');
       return;
     }
 
@@ -98,17 +118,33 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _otpSent ? 'Verifikasi OTP' : 'Lupa Password',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.textHighDark
-                          : AppColors.textHigh,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_otpSent) ...[
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => setState(() => _otpSent = false),
+                          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _otpSent ? 'Verifikasi OTP' : 'Lupa Password',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.textHighDark
+                              : AppColors.textHigh,
+                        ),
+                      ),
+                    ],
                   ),
                   IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.close_rounded, size: 20),
                   ),
@@ -116,6 +152,16 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               ),
               const SizedBox(height: 16),
               if (!_otpSent) ...[
+                Text(
+                  'Masukkan email akun yang terdaftar untuk menerima kode verifikasi OTP.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: isDark
+                        ? AppColors.textMediumDark
+                        : AppColors.textMedium,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 NeumorphicTextField(
                   controller: _emailController,
                   labelText: 'Email Akun Siswa',
@@ -131,7 +177,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                 NeumorphicButton(
                   isPrimary: true,
                   isLoading: auth.isLoading,
-                  onPressed: _handleSendOtp,
+                  onPressed: () => _handleSendOtp(isResend: false),
                   child: const Text(
                     'Kirim Kode OTP',
                     style: TextStyle(
@@ -141,6 +187,49 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                   ),
                 ),
               ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.mark_email_read_outlined,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'OTP dikirim ke: ${_emailController.text.trim()}',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? AppColors.textHighDark
+                                : AppColors.textHigh,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() => _otpSent = false),
+                        child: const Text(
+                          'Ubah',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
                 NeumorphicTextField(
                   controller: _otpController,
                   labelText: 'Kode OTP (6 Digit)',
@@ -156,7 +245,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                 NeumorphicTextField(
                   controller: _newPasswordController,
                   labelText: 'Password Baru',
-                  hintText: 'Minimal 8 karakter',
+                  hintText: 'Minimal 6 karakter',
                   obscureText: _obscurePassword,
                   prefixIcon: const Icon(
                     Icons.lock_outline_rounded,
@@ -176,7 +265,24 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: auth.isLoading
+                        ? null
+                        : () => _handleSendOtp(isResend: true),
+                    child: const Text(
+                      'Kirim Ulang OTP',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 NeumorphicButton(
                   isPrimary: true,
                   isLoading: auth.isLoading,
@@ -197,3 +303,4 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     );
   }
 }
+

@@ -99,14 +99,21 @@ class HistoryDetailSheet extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                attendance.attendanceDate ?? 'Detail Presensi',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? AppColors.textHighDark : AppColors.textHigh,
+              Expanded(
+                child: Text(
+                  DateFormatter.formatIndonesianDateString(
+                    attendance.attendanceDate,
+                    fallback: 'Detail Presensi',
+                  ),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.textHighDark : AppColors.textHigh,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               NeumorphicStatusChip(status: attendance.effectiveStatus),
             ],
           ),

@@ -16,3 +16,4 @@ class ApiEndpoints {
   static const String trainings = '$baseUrl/trainings';
   static String deleteAbsen(int id) => '$baseUrl/absen/$id';
 }
+

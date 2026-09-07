@@ -77,6 +77,12 @@ class StorageService {
     }
   }
 
+  static const String _keyOfflineQueue = 'offline_attendance_queue';
+  static const String _keyReminderCheckIn = 'reminder_checkin_enabled';
+  static const String _keyReminderCheckOut = 'reminder_checkout_enabled';
+  static const String _keyReminderCheckInTime = 'reminder_checkin_time';
+  static const String _keyReminderCheckOutTime = 'reminder_checkout_time';
+
   static Future<void> saveUserMeta(String userKey, Map<String, dynamic> meta) async {
     await _prefs?.setString('user_meta_$userKey', jsonEncode(meta));
   }
@@ -91,5 +97,66 @@ class StorageService {
       }
     }
     return null;
+  }
+
+  static Future<void> saveOfflineQueue(List<Map<String, dynamic>> queue) async {
+    await _prefs?.setString(_keyOfflineQueue, jsonEncode(queue));
+  }
+
+  static List<Map<String, dynamic>> getOfflineQueue() {
+    final raw = _prefs?.getString(_keyOfflineQueue);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          return decoded.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+      } catch (_) {
+        return [];
+      }
+    }
+    return [];
+  }
+
+  static Future<void> addOfflineAttendance(Map<String, dynamic> item) async {
+    final queue = getOfflineQueue();
+    queue.add(item);
+    await saveOfflineQueue(queue);
+  }
+
+  static Future<void> clearOfflineQueue() async {
+    await _prefs?.remove(_keyOfflineQueue);
+  }
+
+  static Future<void> setReminderCheckIn(bool enabled) async {
+    await _prefs?.setBool(_keyReminderCheckIn, enabled);
+  }
+
+  static bool getReminderCheckIn() {
+    return _prefs?.getBool(_keyReminderCheckIn) ?? true;
+  }
+
+  static Future<void> setReminderCheckOut(bool enabled) async {
+    await _prefs?.setBool(_keyReminderCheckOut, enabled);
+  }
+
+  static bool getReminderCheckOut() {
+    return _prefs?.getBool(_keyReminderCheckOut) ?? true;
+  }
+
+  static Future<void> setReminderCheckInTime(String time) async {
+    await _prefs?.setString(_keyReminderCheckInTime, time);
+  }
+
+  static String getReminderCheckInTime() {
+    return _prefs?.getString(_keyReminderCheckInTime) ?? '07:45';
+  }
+
+  static Future<void> setReminderCheckOutTime(String time) async {
+    await _prefs?.setString(_keyReminderCheckOutTime, time);
+  }
+
+  static String getReminderCheckOutTime() {
+    return _prefs?.getString(_keyReminderCheckOutTime) ?? '15:00';
   }
 }

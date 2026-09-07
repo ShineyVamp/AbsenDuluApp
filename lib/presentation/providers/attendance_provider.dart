@@ -20,6 +20,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   AttendanceModel? _todayAttendance;
   AttendanceStatsModel _stats = AttendanceStatsModel();
+  List<Map<String, dynamic>> _offlineQueue = [];
 
   DateTime _currentTime = DateTime.now();
   Timer? _clockTimer;
@@ -32,10 +33,18 @@ class AttendanceProvider extends ChangeNotifier {
   AttendanceModel? get todayAttendance => _todayAttendance;
   AttendanceStatsModel get stats => _stats;
   DateTime get currentTime => _currentTime;
+  List<Map<String, dynamic>> get offlineQueue => _offlineQueue;
+  int get pendingOfflineCount => _offlineQueue.length;
+  bool get hasPendingOffline => _offlineQueue.isNotEmpty;
 
   AttendanceProvider() {
     _startClock();
     initDashboard();
+  }
+
+  void _loadOfflineQueue() {
+    _offlineQueue = StorageService.getOfflineQueue();
+    notifyListeners();
   }
 
   void _startClock() {
@@ -47,9 +56,13 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   Future<void> initDashboard() async {
+    _loadOfflineQueue();
     await updateLocation();
     await loadTodayAttendance();
     await loadStats();
+    if (_offlineQueue.isNotEmpty) {
+      syncOfflineAttendance();
+    }
   }
 
   Future<void> updateLocation() async {
@@ -196,6 +209,41 @@ class AttendanceProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
+      if (_isInsideGeofence) {
+        final now = DateTime.now();
+        final dateStr = DateFormatter.formatApiDate(now);
+        final timeStr = DateFormatter.formatApiTime(now);
+        final lat = _currentPosition?.latitude ?? LocationService.ppkdLat;
+        final lng = _currentPosition?.longitude ?? LocationService.ppkdLng;
+        final offlineItem = {
+          'type': 'check_in',
+          'date': dateStr,
+          'time': timeStr,
+          'lat': lat,
+          'lng': lng,
+          'address': LocationService.ppkdAddress,
+        };
+        await StorageService.addOfflineAttendance(offlineItem);
+        _offlineQueue = StorageService.getOfflineQueue();
+        final localRecord = AttendanceModel(
+          attendanceDate: dateStr,
+          checkIn: timeStr,
+          checkInTime: timeStr,
+          checkInLat: lat,
+          checkInLng: lng,
+          checkInAddress: LocationService.ppkdAddress,
+          status: 'masuk',
+        );
+        _todayAttendance = localRecord;
+        await StorageService.saveTodayAttendance(
+          dateStr,
+          jsonEncode(localRecord.toJson()),
+        );
+        _errorMessage = 'Tersimpan offline di antrean lokal. Akan disinkronkan saat online.';
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
@@ -263,11 +311,104 @@ class AttendanceProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
+      if (_isInsideGeofence) {
+        final now = DateTime.now();
+        final dateStr = DateFormatter.formatApiDate(now);
+        final timeStr = DateFormatter.formatApiTime(now);
+        final lat = _currentPosition?.latitude ?? LocationService.ppkdLat;
+        final lng = _currentPosition?.longitude ?? LocationService.ppkdLng;
+        final offlineItem = {
+          'type': 'check_out',
+          'date': dateStr,
+          'time': timeStr,
+          'lat': lat,
+          'lng': lng,
+          'address': LocationService.ppkdAddress,
+        };
+        await StorageService.addOfflineAttendance(offlineItem);
+        _offlineQueue = StorageService.getOfflineQueue();
+        final existingCheckIn = _todayAttendance?.checkIn;
+        final existingCheckInTime = _todayAttendance?.checkInTime;
+        final localRecord = AttendanceModel(
+          id: _todayAttendance?.id,
+          userId: _todayAttendance?.userId,
+          attendanceDate: _todayAttendance?.attendanceDate ?? dateStr,
+          checkIn: existingCheckIn,
+          checkInTime: existingCheckInTime,
+          checkOut: timeStr,
+          checkOutTime: timeStr,
+          checkInLat: _todayAttendance?.checkInLat,
+          checkInLng: _todayAttendance?.checkInLng,
+          checkOutLat: lat,
+          checkOutLng: lng,
+          checkInAddress: _todayAttendance?.checkInAddress,
+          checkOutAddress: LocationService.ppkdAddress,
+          status: 'pulang',
+          alasanIzin: _todayAttendance?.alasanIzin,
+        );
+        _todayAttendance = localRecord;
+        await StorageService.saveTodayAttendance(
+          dateStr,
+          jsonEncode(localRecord.toJson()),
+        );
+        _errorMessage = 'Tersimpan offline di antrean lokal. Akan disinkronkan saat online.';
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
     }
+  }
+
+  Future<int> syncOfflineAttendance() async {
+    final queue = StorageService.getOfflineQueue();
+    if (queue.isEmpty) return 0;
+
+    int syncedCount = 0;
+    final remainingQueue = <Map<String, dynamic>>[];
+
+    for (final item in queue) {
+      try {
+        final type = item['type'] as String?;
+        final date = item['date'] as String? ?? DateFormatter.formatApiDate(DateTime.now());
+        final time = item['time'] as String? ?? DateFormatter.formatApiTime(DateTime.now());
+        final lat = (item['lat'] as num?)?.toDouble() ?? LocationService.ppkdLat;
+        final lng = (item['lng'] as num?)?.toDouble() ?? LocationService.ppkdLng;
+        final address = item['address'] as String? ?? LocationService.ppkdAddress;
+
+        if (type == 'check_in') {
+          await _repository.checkIn(
+            date: date,
+            time: time,
+            lat: lat,
+            lng: lng,
+            address: address,
+          );
+          syncedCount++;
+        } else if (type == 'check_out') {
+          await _repository.checkOut(
+            date: date,
+            time: time,
+            lat: lat,
+            lng: lng,
+            address: address,
+          );
+          syncedCount++;
+        }
+      } catch (_) {
+        remainingQueue.add(item);
+      }
+    }
+
+    await StorageService.saveOfflineQueue(remainingQueue);
+    _offlineQueue = remainingQueue;
+    await loadTodayAttendance();
+    await loadStats();
+    notifyListeners();
+    return syncedCount;
   }
 
   Future<bool> submitIzin(String reason) async {

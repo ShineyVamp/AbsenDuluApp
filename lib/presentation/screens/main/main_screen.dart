@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:absendulu/presentation/providers/auth_provider.dart';
+import 'package:absendulu/presentation/providers/history_provider.dart';
 import 'package:absendulu/presentation/screens/dashboard/dashboard_screen.dart';
 import 'package:absendulu/presentation/screens/history/history_screen.dart';
 import 'package:absendulu/presentation/screens/profile/profile_screen.dart';
-import 'package:absendulu/presentation/providers/auth_provider.dart';
-import 'package:absendulu/presentation/providers/history_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -27,6 +27,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AuthProvider>(context, listen: false).fetchProfile();
+      Provider.of<HistoryProvider>(context, listen: false).refreshHistory();
     });
   }
 
@@ -49,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
         },
         behavior: HitTestBehavior.opaque,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -101,7 +102,7 @@ class _MainScreenState extends State<MainScreen> {
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1B2230) : Colors.white,
-                      borderRadius: BorderRadius.circular(36),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
                           color: isDark
@@ -133,7 +134,7 @@ class _MainScreenState extends State<MainScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF2C54D8),
-                                  borderRadius: BorderRadius.circular(26),
+                                  borderRadius: BorderRadius.circular(12),
                                   boxShadow: [
                                     BoxShadow(
                                       color: const Color(
@@ -150,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
                               children: [
                                 _buildNavItem(
                                   0,
-                                  Icons.home_rounded,
+                                  Icons.home_outlined,
                                   'Beranda',
                                   isDark,
                                 ),

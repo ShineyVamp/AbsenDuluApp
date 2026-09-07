@@ -167,7 +167,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () {
                         showDialog(
                           context: context,
-                          builder: (_) => const ForgotPasswordDialog(),
+                          builder: (_) => ForgotPasswordDialog(
+                            initialEmail: _emailController.text.trim().isNotEmpty
+                                ? _emailController.text.trim()
+                                : null,
+                          ),
                         );
                       },
                       child: const Text(

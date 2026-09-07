@@ -1,10 +1,11 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  static const double ppkdLat = -6.2085;
-  static const double ppkdLng = 106.8165;
+  static const double ppkdLat = -6.210880;
+  static const double ppkdLng = 106.812942;
   static const double geofenceRadius = 300.0;
-  static const String ppkdAddress = 'PPKD Jakarta Pusat, Jl. Karet Pasar Baru Barat V No. 23, Bendungan Hilir, Tanah Abang, Jakarta Pusat';
+  static const String ppkdAddress =
+      'PPKD Jakarta Pusat, Jl. Karet Pasar Baru Barat V No. 23, Bendungan Hilir, Tanah Abang, Jakarta Pusat';
 
   static Future<bool> isLocationServiceEnabled() async {
     return await Geolocator.isLocationServiceEnabled();

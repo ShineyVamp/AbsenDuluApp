@@ -1,14 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:absendulu/core/constants/app_colors.dart';
 import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/core/utils/date_formatter.dart';
 import 'package:absendulu/data/models/attendance_model.dart';
 import 'package:absendulu/presentation/providers/history_provider.dart';
-import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
-import 'package:absendulu/presentation/widgets/neumorphic_status_chip.dart';
-import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
 import 'package:absendulu/presentation/screens/history/history_detail_sheet.dart';
+import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
+import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
+import 'package:absendulu/presentation/widgets/neumorphic_status_chip.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -258,16 +258,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      item.attendanceDate ?? 'Presensi',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark
-                                            ? AppColors.textHighDark
-                                            : AppColors.textHigh,
+                                    Expanded(
+                                      child: Text(
+                                        DateFormatter.formatIndonesianDateString(
+                                          item.attendanceDate,
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : AppColors.textHigh,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     NeumorphicStatusChip(
                                       status: item.effectiveStatus,
                                     ),
@@ -379,9 +385,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       {
         'label': 'Hadir',
         'count': history.historyList
-            .where((item) =>
-                item.effectiveStatus == 'hadir' ||
-                item.effectiveStatus == 'masuk')
+            .where(
+              (item) =>
+                  item.effectiveStatus == 'hadir' ||
+                  item.effectiveStatus == 'masuk',
+            )
             .length,
         'color': const Color(0xFF086842),
         'textColor': Colors.white,
@@ -389,9 +397,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       {
         'label': 'Terlambat',
         'count': history.historyList
-            .where((item) =>
-                item.effectiveStatus == 'terlambat' ||
-                item.effectiveStatus == 'telat')
+            .where(
+              (item) =>
+                  item.effectiveStatus == 'terlambat' ||
+                  item.effectiveStatus == 'telat',
+            )
             .length,
         'color': const Color(0xFFEA580C),
         'textColor': Colors.white,
@@ -467,13 +477,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       label,
                       style: TextStyle(
                         fontSize: 12.5,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w600,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                         color: isSelected
                             ? textColor
                             : (isDark
-                                ? AppColors.textHighDark
-                                : const Color(0xFF334155)),
+                                  ? AppColors.textHighDark
+                                  : const Color(0xFF334155)),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -485,11 +496,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? (label == 'Izin'
-                                ? Colors.black.withValues(alpha: 0.12)
-                                : Colors.white.withValues(alpha: 0.25))
+                                  ? Colors.black.withValues(alpha: 0.12)
+                                  : Colors.white.withValues(alpha: 0.25))
                             : (isDark
-                                ? const Color(0xFF222B3D)
-                                : const Color(0xFFE2E8F0)),
+                                  ? const Color(0xFF222B3D)
+                                  : const Color(0xFFE2E8F0)),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -500,8 +511,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           color: isSelected
                               ? textColor
                               : (isDark
-                                  ? AppColors.textMediumDark
-                                  : const Color(0xFF64748B)),
+                                    ? AppColors.textMediumDark
+                                    : const Color(0xFF64748B)),
                         ),
                       ),
                     ),
@@ -581,68 +592,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
                     Icons.apps_rounded,
-                    size: 22,
+                    size: 20,
                     color: Color(0xFF2C54D8),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Heatmap Aktivitas',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: isDark
                           ? AppColors.textHighDark
                           : const Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF086842),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Hadir',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppColors.textMediumDark
-                          : const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF6B155),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Izin',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppColors.textMediumDark
-                          : const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -765,14 +737,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         }
 
                         final att = attendanceByDay[d];
+                        final bool isIzin = att != null && att.isIzin;
+                        final bool isTerlambat =
+                            att != null &&
+                            !att.isIzin &&
+                            (att.isLate ||
+                                att.effectiveStatus == 'terlambat' ||
+                                att.effectiveStatus == 'telat');
                         final bool isHadir =
                             att != null &&
                             !att.isIzin &&
+                            !isTerlambat &&
                             (att.isCheckedIn ||
                                 att.effectiveStatus == 'hadir' ||
-                                att.effectiveStatus == 'masuk' ||
-                                att.effectiveStatus == 'terlambat');
-                        final bool isIzin = att != null && att.isIzin;
+                                att.effectiveStatus == 'masuk');
                         final bool isToday =
                             now.year == year &&
                             now.month == month &&
@@ -790,6 +768,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             BoxShadow(
                               color: const Color(
                                 0xFF086842,
+                              ).withValues(alpha: 0.35),
+                              offset: const Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ];
+                        } else if (isTerlambat) {
+                          cellBgColor = const Color(0xFFEA580C);
+                          cellTextColor = Colors.white;
+                          cellShadow = [
+                            BoxShadow(
+                              color: const Color(
+                                0xFFEA580C,
                               ).withValues(alpha: 0.35),
                               offset: const Offset(0, 2),
                               blurRadius: 4,
@@ -880,6 +870,74 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         );
                       }),
                     ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF086842),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Hadir',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textMediumDark
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEA580C),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Terlambat',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textMediumDark
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6B155),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Izin',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textMediumDark
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
