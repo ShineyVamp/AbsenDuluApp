@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:absendulu/core/constants/app_colors.dart';
 import 'package:absendulu/core/services/storage_service.dart';
 import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/extensions/navigation.dart';
 import 'package:absendulu/presentation/screens/auth/login_screen.dart';
 import 'package:absendulu/presentation/screens/main/main_screen.dart';
+import 'package:flutter/material.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -53,17 +53,16 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'absendulu',
+              'AbsenDulu',
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
-                letterSpacing: 2,
                 color: isDark ? AppColors.textHighDark : AppColors.textHigh,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Sistem Presensi PPKD Jakarta',
+              'Aplikasi Presensi Pelatihan',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,

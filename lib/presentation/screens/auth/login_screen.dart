@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:absendulu/core/constants/app_colors.dart';
 import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/extensions/navigation.dart';
-import 'package:absendulu/presentation/screens/main/main_screen.dart';
 import 'package:absendulu/presentation/providers/auth_provider.dart';
+import 'package:absendulu/presentation/screens/auth/forgot_password_dialog.dart';
+import 'package:absendulu/presentation/screens/auth/register_screen.dart';
+import 'package:absendulu/presentation/screens/main/main_screen.dart';
 import 'package:absendulu/presentation/widgets/custom_snackbar.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_button.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_text_field.dart';
-import 'package:absendulu/presentation/screens/auth/forgot_password_dialog.dart';
-import 'package:absendulu/presentation/screens/auth/register_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -168,7 +168,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         showDialog(
                           context: context,
                           builder: (_) => ForgotPasswordDialog(
-                            initialEmail: _emailController.text.trim().isNotEmpty
+                            initialEmail:
+                                _emailController.text.trim().isNotEmpty
                                 ? _emailController.text.trim()
                                 : null,
                           ),

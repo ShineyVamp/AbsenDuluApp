@@ -1,3 +1,4 @@
+import 'package:absendulu/core/constants/app_colors.dart';
 import 'package:absendulu/presentation/providers/auth_provider.dart';
 import 'package:absendulu/presentation/providers/history_provider.dart';
 import 'package:absendulu/presentation/screens/dashboard/dashboard_screen.dart';
@@ -84,7 +85,7 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
-          color: isDark ? const Color(0xFF1B2230) : Colors.white,
+          color: isDark ? const Color(0xFF1B2230) : AppColors.cardBg,
           boxShadow: [
             BoxShadow(
               color: isDark

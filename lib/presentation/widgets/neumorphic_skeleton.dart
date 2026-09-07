@@ -203,49 +203,92 @@ class RegisterFormSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: NeumorphicDecorations.extruded(
-                isDark: isDark,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: NeumorphicSkeleton.circle(size: 72),
-              ),
-            ),
+        children: const [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 170, height: 22, borderRadius: 6),
           ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: NeumorphicDecorations.extruded(
-              isDark: isDark,
-              borderRadius: 24,
-            ),
-            child: Column(
-              children: const [
-                NeumorphicSkeleton(height: 50, borderRadius: 14),
-                SizedBox(height: 14),
-                NeumorphicSkeleton(height: 50, borderRadius: 14),
-                SizedBox(height: 14),
-                NeumorphicSkeleton(height: 50, borderRadius: 14),
-                SizedBox(height: 14),
-                NeumorphicSkeleton(height: 50, borderRadius: 14),
-                SizedBox(height: 14),
-                NeumorphicSkeleton(height: 50, borderRadius: 14),
-                SizedBox(height: 20),
-                NeumorphicSkeleton(height: 50, borderRadius: 16),
-              ],
-            ),
+          SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 280, height: 14, borderRadius: 4),
           ),
+          SizedBox(height: 24),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 135, height: 14, borderRadius: 4),
+          ),
+          SizedBox(height: 8),
+          NeumorphicSkeleton(height: 50, borderRadius: 14),
+          SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 125, height: 14, borderRadius: 4),
+          ),
+          SizedBox(height: 8),
+          NeumorphicSkeleton(height: 50, borderRadius: 14),
+          SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 90, height: 14, borderRadius: 4),
+          ),
+          SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: NeumorphicSkeleton(height: 44, borderRadius: 14),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: NeumorphicSkeleton(height: 44, borderRadius: 14),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 105, height: 14, borderRadius: 4),
+          ),
+          SizedBox(height: 8),
+          NeumorphicSkeleton(height: 48, borderRadius: 14),
+          SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 120, height: 14, borderRadius: 4),
+          ),
+          SizedBox(height: 8),
+          NeumorphicSkeleton(height: 48, borderRadius: 14),
+          SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 75, height: 14, borderRadius: 4),
+          ),
+          SizedBox(height: 8),
+          NeumorphicSkeleton(height: 50, borderRadius: 14),
+          SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NeumorphicSkeleton(width: 145, height: 14, borderRadius: 4),
+          ),
+          SizedBox(height: 8),
+          NeumorphicSkeleton(height: 50, borderRadius: 14),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              NeumorphicSkeleton(width: 20, height: 20, borderRadius: 4),
+              SizedBox(width: 12),
+              Expanded(
+                child: NeumorphicSkeleton(height: 14, borderRadius: 4),
+              ),
+            ],
+          ),
+          SizedBox(height: 24),
+          NeumorphicSkeleton(height: 52, borderRadius: 16),
+          SizedBox(height: 20),
         ],
       ),
     );
