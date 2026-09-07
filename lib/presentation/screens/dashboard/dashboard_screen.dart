@@ -202,1059 +202,1045 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: () => attendance.initDashboard(),
           color: AppColors.primary,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Halo, $userName',
-                                style: TextStyle(
-                                  fontSize: 30 * fontScale,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? AppColors.textHighDark
-                                      : AppColors.textHigh,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateFormatter.formatIndonesianDate(
-                                  DateTime.now(),
-                                ),
-                                style: TextStyle(
-                                  fontSize: 13 * fontScale,
-                                  color: isDark
-                                      ? AppColors.textMediumDark
-                                      : AppColors.textMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => theme.toggleTheme(!theme.isDarkMode),
-                          icon: Icon(
-                            theme.isDarkMode
-                                ? Icons.light_mode_rounded
-                                : Icons.dark_mode_rounded,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    if (attendance.hasPendingOffline) ...[
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFFEA580C,
-                          ).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(
-                              0xFFEA580C,
-                            ).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 26),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFFEA580C,
-                                ).withValues(alpha: 0.2),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.cloud_off_rounded,
-                                size: 18,
-                                color: Color(0xFFEA580C),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${attendance.pendingOfflineCount} Presensi Belum Sinkron',
-                                    style: TextStyle(
-                                      fontSize: 12.5 * fontScale,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFFEA580C),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Tersimpan offline. Sinkronkan sekarang ke server.',
-                                    style: TextStyle(
-                                      fontSize: 11 * fontScale,
-                                      color: isDark
-                                          ? AppColors.textMediumDark
-                                          : AppColors.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFEA580C),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                elevation: 0,
-                              ),
-                              onPressed: () async {
-                                final count = await attendance
-                                    .syncOfflineAttendance();
-                                if (context.mounted) {
-                                  if (count > 0) {
-                                    CustomSnackBar.showSuccess(
-                                      context,
-                                      '$count presensi offline berhasil disinkronkan',
-                                    );
-                                  } else {
-                                    CustomSnackBar.showWarning(
-                                      context,
-                                      'Tidak dapat terhubung ke server',
-                                    );
-                                  }
-                                }
-                              },
-                              child: const Text(
-                                'Sync',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (showMorningReminder) ...[
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(
-                                  alpha: 0.15,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.alarm_rounded,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Pengingat Presensi Masuk',
-                                    style: TextStyle(
-                                      fontSize: 12.5 * fontScale,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Batas absen masuk pukul ${DateFormatter.formatTimeString('08:00', isRoman: theme.isRomanClock)} WIB. Segera lakukan presensi di area PPKD.',
-                                    style: TextStyle(
-                                      fontSize: 11 * fontScale,
-                                      color: isDark
-                                          ? AppColors.textMediumDark
-                                          : AppColors.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else if (showAfternoonReminder) ...[
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppColors.success.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.success.withValues(
-                                  alpha: 0.15,
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.alarm_on_rounded,
-                                size: 18,
-                                color: AppColors.success,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Pengingat Presensi Pulang',
-                                    style: TextStyle(
-                                      fontSize: 12.5 * fontScale,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.success,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Jam belajar hari ini telah selesai. Jangan lupa lakukan presensi pulang.',
-                                    style: TextStyle(
-                                      fontSize: 11 * fontScale,
-                                      color: isDark
-                                          ? AppColors.textMediumDark
-                                          : AppColors.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    NeumorphicCard(
-                      borderRadius: 24,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 22,
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  attendance.isInsideGeofence
-                                      ? 'Lokasi Sesuai: Radius ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus'
-                                      : 'Di Luar Radius: ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus (Maks 300m)',
-                                  style: TextStyle(
-                                    fontSize: 12 * fontScale,
-                                    fontWeight: FontWeight.w700,
-                                    color: attendance.isInsideGeofence
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFFEF4444),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  hourMinuteStr,
-                                  style: TextStyle(
-                                    fontSize: (theme.isRomanClock ? 30 : 38) *
-                                        fontScale,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing:
-                                        theme.isRomanClock ? 0.8 : 1.2,
-                                    color: isDark
-                                        ? AppColors.textHighDark
-                                        : const Color(0xFF0F172A),
-                                  ),
-                                ),
-                                Text(
-                                  ':$secondStr',
-                                  style: TextStyle(
-                                    fontSize: (theme.isRomanClock ? 30 : 38) *
-                                        fontScale,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing:
-                                        theme.isRomanClock ? 0.8 : 1.2,
-                                    color: const Color(0xFF2C54D8),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'WIB',
-                                  style: TextStyle(
-                                    fontSize: (theme.isRomanClock ? 26 : 38) *
-                                        fontScale,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark
-                                        ? AppColors.textMediumDark
-                                        : const Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Jadwal Masuk: ${DateFormatter.formatTimeString('08:00', isRoman: theme.isRomanClock)} WIB',
-                            style: TextStyle(
-                              fontSize: 12 * fontScale,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? AppColors.textMediumDark
-                                  : const Color(0xFF64748B),
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          GestureDetector(
-                            onTap: handleAttendanceTap,
-                            child: Container(
-                              width: 196,
-                              height: 196,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
+                            Text(
+                              'Halo, $userName',
+                              style: TextStyle(
+                                fontSize: 30 * fontScale,
+                                fontWeight: FontWeight.w700,
                                 color: isDark
-                                    ? const Color(0xFF1E2838)
-                                    : const Color(0xFFEAF0FA),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isDark
-                                        ? Colors.black.withValues(alpha: 0.5)
-                                        : const Color(
-                                            0xFFA6BEDD,
-                                          ).withValues(alpha: 0.45),
-                                    offset: const Offset(6, 6),
-                                    blurRadius: 18,
-                                  ),
-                                  BoxShadow(
-                                    color: isDark
-                                        ? const Color(
-                                            0xFF26344A,
-                                          ).withValues(alpha: 0.6)
-                                        : Colors.white.withValues(alpha: 0.95),
-                                    offset: const Offset(-6, -6),
-                                    blurRadius: 18,
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 160,
-                                  height: 160,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: buttonColor,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: buttonColor.withValues(
-                                          alpha: 0.4,
-                                        ),
-                                        offset: const Offset(0, 6),
-                                        blurRadius: 16,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (isTodayLoading) ...[
-                                        const SizedBox(
-                                          width: 28,
-                                          height: 28,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'MEMERIKSA...',
-                                          style: TextStyle(
-                                            fontSize: 10 * fontScale,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white.withValues(
-                                              alpha: 0.85,
-                                            ),
-                                            letterSpacing: 1.1,
-                                          ),
-                                        ),
-                                      ] else ...[
-                                        Text(
-                                          mainButtonText,
-                                          style: TextStyle(
-                                            fontSize: 24 * fontScale,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          subButtonText,
-                                          style: TextStyle(
-                                            fontSize: 10 * fontScale,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white.withValues(
-                                              alpha: 0.85,
-                                            ),
-                                            letterSpacing: 1.1,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
+                                    ? AppColors.textHighDark
+                                    : AppColors.textHigh,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: NeumorphicDecorations.extrudedSm(
-                                    isDark: isDark,
-                                    borderRadius: 16,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 14,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.login_rounded,
-                                            size: 16,
-                                            color: Color(0xFF10B981),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Masuk',
-                                            style: TextStyle(
-                                              fontSize: 12 * fontScale,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark
-                                                  ? AppColors.textMediumDark
-                                                  : AppColors.textMedium,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      if (isTodayLoading) ...[
-                                        const NeumorphicSkeleton(
-                                          width: 65,
-                                          height: 20,
-                                          borderRadius: 5,
-                                        ),
-                                        const SizedBox(height: 5),
-                                        const NeumorphicSkeleton(
-                                          width: 75,
-                                          height: 12,
-                                          borderRadius: 4,
-                                        ),
-                                      ] else ...[
-                                        Text(
-                                          checkInTimeDisplay,
-                                          style: TextStyle(
-                                            fontSize: 18 * fontScale,
-                                            fontWeight: FontWeight.w800,
-                                            color: isDark
-                                                ? AppColors.textHighDark
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          checkInStatusText,
-                                          style: TextStyle(
-                                            fontSize: 11 * fontScale,
-                                            fontWeight: FontWeight.w600,
-                                            color: checkInStatusColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormatter.formatIndonesianDate(
+                                DateTime.now(),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Container(
-                                  decoration: NeumorphicDecorations.extrudedSm(
-                                    isDark: isDark,
-                                    borderRadius: 16,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 14,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.logout_rounded,
-                                            size: 16,
-                                            color: Color(0xFF2C54D8),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Pulang',
-                                            style: TextStyle(
-                                              fontSize: 12 * fontScale,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark
-                                                  ? AppColors.textMediumDark
-                                                  : AppColors.textMedium,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      if (isTodayLoading) ...[
-                                        const NeumorphicSkeleton(
-                                          width: 65,
-                                          height: 20,
-                                          borderRadius: 5,
-                                        ),
-                                        const SizedBox(height: 5),
-                                        const NeumorphicSkeleton(
-                                          width: 75,
-                                          height: 12,
-                                          borderRadius: 4,
-                                        ),
-                                      ] else ...[
-                                        Text(
-                                          checkOutTimeDisplay,
-                                          style: TextStyle(
-                                            fontSize: 18 * fontScale,
-                                            fontWeight: FontWeight.w800,
-                                            color: isDark
-                                                ? AppColors.textHighDark
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          checkOutStatusText,
-                                          style: TextStyle(
-                                            fontSize: 11 * fontScale,
-                                            fontWeight: FontWeight.w600,
-                                            color: checkOutStatusColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
+                              style: TextStyle(
+                                fontSize: 13 * fontScale,
+                                color: isDark
+                                    ? AppColors.textMediumDark
+                                    : AppColors.textMedium,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    NeumorphicCard(
-                      borderRadius: 22,
-                      padding: const EdgeInsets.all(18),
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => const LeaveRequestDialog(),
-                        );
-                      },
+                      IconButton(
+                        onPressed: () => theme.toggleTheme(!theme.isDarkMode),
+                        icon: Icon(
+                          theme.isDarkMode
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (attendance.hasPendingOffline) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEA580C).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFEA580C).withValues(alpha: 0.3),
+                        ),
+                      ),
                       child: Row(
                         children: [
                           Container(
-                            width: 50,
-                            height: 50,
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              color: Color(0xFFF59E0B),
+                              color: const Color(
+                                0xFFEA580C,
+                              ).withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              Icons.event_busy_rounded,
-                              color: Colors.white,
-                              size: 26,
+                              Icons.cloud_off_rounded,
+                              size: 18,
+                              color: Color(0xFFEA580C),
                             ),
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Pengajuan Izin & Sakit',
+                                  '${attendance.pendingOfflineCount} Presensi Belum Sinkron',
                                   style: TextStyle(
-                                    fontSize: 15 * fontScale,
-                                    fontWeight: FontWeight.w800,
-                                    color: isDark
-                                        ? AppColors.textHighDark
-                                        : const Color(0xFF0F172A),
+                                    fontSize: 12.5 * fontScale,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFFEA580C),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Berhalangan hadir? Ajukan permohonan resmi di sini',
+                                  'Tersimpan offline. Sinkronkan sekarang ke server.',
                                   style: TextStyle(
-                                    fontSize: 11.5 * fontScale,
-                                    height: 1.35,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 11 * fontScale,
                                     color: isDark
                                         ? AppColors.textMediumDark
-                                        : const Color(0xFF64748B),
+                                        : AppColors.textMedium,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 14,
-                              color: Color(0xFFF59E0B),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEA580C),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: () async {
+                              final count = await attendance
+                                  .syncOfflineAttendance();
+                              if (context.mounted) {
+                                if (count > 0) {
+                                  CustomSnackBar.showSuccess(
+                                    context,
+                                    '$count presensi offline berhasil disinkronkan',
+                                  );
+                                } else {
+                                  CustomSnackBar.showWarning(
+                                    context,
+                                    'Tidak dapat terhubung ke server',
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text(
+                              'Sync',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                  ],
+                  if (showMorningReminder) ...[
                     Container(
-                      decoration: NeumorphicDecorations.extruded(
-                        isDark: isDark,
-                        borderRadius: 22,
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                        ),
                       ),
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.bar_chart_rounded,
-                                    size: 20,
-                                    color: Color(0xFF2C54D8),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Statistik Kehadiran',
-                                    style: TextStyle(
-                                      fontSize: 16 * fontScale,
-                                      fontWeight: FontWeight.w700,
-                                      color: isDark
-                                          ? AppColors.textHighDark
-                                          : const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const AttendanceStatsDetailScreen(),
-                                    ),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  child: Text(
-                                    'Detail',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF2C54D8),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.alarm_rounded,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: NeumorphicDecorations.extrudedSm(
-                                    isDark: isDark,
-                                    borderRadius: 16,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 6,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        'Hadir',
-                                        style: TextStyle(
-                                          fontSize: 11.5 * fontScale,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF10B981),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      if (isDashboardLoading)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: 4,
-                                          ),
-                                          child: NeumorphicSkeleton(
-                                            width: 35,
-                                            height: 22,
-                                            borderRadius: 6,
-                                          ),
-                                        )
-                                      else
-                                        Text(
-                                          '$totalHadir',
-                                          style: TextStyle(
-                                            fontSize: 22 * fontScale,
-                                            fontWeight: FontWeight.w900,
-                                            color: isDark
-                                                ? AppColors.textHighDark
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '$totalHadir Hari',
-                                        style: TextStyle(
-                                          fontSize: 10.5 * fontScale,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textMediumDark
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pengingat Presensi Masuk',
+                                  style: TextStyle(
+                                    fontSize: 12.5 * fontScale,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Container(
-                                  decoration: NeumorphicDecorations.extrudedSm(
-                                    isDark: isDark,
-                                    borderRadius: 16,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 6,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        'Terlambat',
-                                        style: TextStyle(
-                                          fontSize: 11.5 * fontScale,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFFEA580C),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      if (isDashboardLoading)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: 4,
-                                          ),
-                                          child: NeumorphicSkeleton(
-                                            width: 35,
-                                            height: 22,
-                                            borderRadius: 6,
-                                          ),
-                                        )
-                                      else
-                                        Text(
-                                          '$totalTerlambat',
-                                          style: TextStyle(
-                                            fontSize: 22 * fontScale,
-                                            fontWeight: FontWeight.w900,
-                                            color: isDark
-                                                ? AppColors.textHighDark
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '$totalTerlambat Hari',
-                                        style: TextStyle(
-                                          fontSize: 10.5 * fontScale,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textMediumDark
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Batas absen masuk pukul ${DateFormatter.formatTimeString('08:00', isRoman: theme.isRomanClock)} WIB. Segera lakukan presensi di area PPKD.',
+                                  style: TextStyle(
+                                    fontSize: 11 * fontScale,
+                                    color: isDark
+                                        ? AppColors.textMediumDark
+                                        : AppColors.textMedium,
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Container(
-                                  decoration: NeumorphicDecorations.extrudedSm(
-                                    isDark: isDark,
-                                    borderRadius: 16,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 6,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        'Izin',
-                                        style: TextStyle(
-                                          fontSize: 11.5 * fontScale,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFFF59E0B),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      if (isDashboardLoading)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: 4,
-                                          ),
-                                          child: NeumorphicSkeleton(
-                                            width: 35,
-                                            height: 22,
-                                            borderRadius: 6,
-                                          ),
-                                        )
-                                      else
-                                        Text(
-                                          '$totalIzin',
-                                          style: TextStyle(
-                                            fontSize: 22 * fontScale,
-                                            fontWeight: FontWeight.w900,
-                                            color: isDark
-                                                ? AppColors.textHighDark
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '$totalIzin Hari',
-                                        style: TextStyle(
-                                          fontSize: 10.5 * fontScale,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textMediumDark
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: NeumorphicDecorations.extrudedSm(
-                                    isDark: isDark,
-                                    borderRadius: 16,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 10,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        'Jumlah Masuk',
-                                        style: TextStyle(
-                                          fontSize: 11.5 * fontScale,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      if (isDashboardLoading)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: 4,
-                                          ),
-                                          child: NeumorphicSkeleton(
-                                            width: 44,
-                                            height: 22,
-                                            borderRadius: 6,
-                                          ),
-                                        )
-                                      else
-                                        Text(
-                                          '${stats.totalMasuk}',
-                                          style: TextStyle(
-                                            fontSize: 22 * fontScale,
-                                            fontWeight: FontWeight.w900,
-                                            color: isDark
-                                                ? AppColors.textHighDark
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Total Sesi Hadir',
-                                        style: TextStyle(
-                                          fontSize: 10.5 * fontScale,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textMediumDark
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Container(
-                                  decoration: NeumorphicDecorations.extrudedSm(
-                                    isDark: isDark,
-                                    borderRadius: 16,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 10,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        'Persentase Hadir',
-                                        style: TextStyle(
-                                          fontSize: 11.5 * fontScale,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      if (isDashboardLoading)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: 4,
-                                          ),
-                                          child: NeumorphicSkeleton(
-                                            width: 55,
-                                            height: 22,
-                                            borderRadius: 6,
-                                          ),
-                                        )
-                                      else
-                                        Text(
-                                          '${stats.attendancePercentage.toStringAsFixed(1)}%',
-                                          style: TextStyle(
-                                            fontSize: 22 * fontScale,
-                                            fontWeight: FontWeight.w900,
-                                            color: isDark
-                                                ? AppColors.textHighDark
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Kehadiran',
-                                        style: TextStyle(
-                                          fontSize: 10.5 * fontScale,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark
-                                              ? AppColors.textMediumDark
-                                              : const Color(0xFF64748B),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-
-                    const SizedBox(height: 24),
+                  ] else if (showAfternoonReminder) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.success.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.alarm_on_rounded,
+                              size: 18,
+                              color: AppColors.success,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pengingat Presensi Pulang',
+                                  style: TextStyle(
+                                    fontSize: 12.5 * fontScale,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Jam belajar hari ini telah selesai. Jangan lupa lakukan presensi pulang.',
+                                  style: TextStyle(
+                                    fontSize: 11 * fontScale,
+                                    color: isDark
+                                        ? AppColors.textMediumDark
+                                        : AppColors.textMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
-                ),
+                  NeumorphicCard(
+                    borderRadius: 24,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 22,
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                attendance.isInsideGeofence
+                                    ? 'Lokasi Sesuai: Radius ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus'
+                                    : 'Di Luar Radius: ${attendance.distanceToPpkd.toStringAsFixed(0)}m dari PPKD Jakpus (Maks 300m)',
+                                style: TextStyle(
+                                  fontSize: 12 * fontScale,
+                                  fontWeight: FontWeight.w700,
+                                  color: attendance.isInsideGeofence
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFEF4444),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                hourMinuteStr,
+                                style: TextStyle(
+                                  fontSize:
+                                      (theme.isRomanClock ? 30 : 38) *
+                                      fontScale,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: theme.isRomanClock ? 0.8 : 1.2,
+                                  color: isDark
+                                      ? AppColors.textHighDark
+                                      : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                ':$secondStr',
+                                style: TextStyle(
+                                  fontSize:
+                                      (theme.isRomanClock ? 30 : 38) *
+                                      fontScale,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: theme.isRomanClock ? 0.8 : 1.2,
+                                  color: const Color(0xFF2C54D8),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'WIB',
+                                style: TextStyle(
+                                  fontSize:
+                                      (theme.isRomanClock ? 26 : 38) *
+                                      fontScale,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? AppColors.textMediumDark
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Jadwal Masuk: ${DateFormatter.formatTimeString('08:00', isRoman: theme.isRomanClock)} WIB',
+                          style: TextStyle(
+                            fontSize: 12 * fontScale,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? AppColors.textMediumDark
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        GestureDetector(
+                          onTap: handleAttendanceTap,
+                          child: Container(
+                            width: 196,
+                            height: 196,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDark
+                                  ? const Color(0xFF1E2838)
+                                  : const Color(0xFFEAF0FA),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.5)
+                                      : const Color(
+                                          0xFFA6BEDD,
+                                        ).withValues(alpha: 0.45),
+                                  offset: const Offset(6, 6),
+                                  blurRadius: 18,
+                                ),
+                                BoxShadow(
+                                  color: isDark
+                                      ? const Color(
+                                          0xFF26344A,
+                                        ).withValues(alpha: 0.6)
+                                      : Colors.white.withValues(alpha: 0.95),
+                                  offset: const Offset(-6, -6),
+                                  blurRadius: 18,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 160,
+                                height: 160,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: buttonColor,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: buttonColor.withValues(alpha: 0.4),
+                                      offset: const Offset(0, 6),
+                                      blurRadius: 16,
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (isTodayLoading) ...[
+                                      const SizedBox(
+                                        width: 28,
+                                        height: 28,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'MEMERIKSA...',
+                                        style: TextStyle(
+                                          fontSize: 10 * fontScale,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        mainButtonText,
+                                        style: TextStyle(
+                                          fontSize: 24 * fontScale,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        subButtonText,
+                                        style: TextStyle(
+                                          fontSize: 10 * fontScale,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.login_rounded,
+                                          size: 16,
+                                          color: Color(0xFF10B981),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Masuk',
+                                          style: TextStyle(
+                                            fontSize: 12 * fontScale,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.textMediumDark
+                                                : AppColors.textMedium,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    if (isTodayLoading) ...[
+                                      const NeumorphicSkeleton(
+                                        width: 65,
+                                        height: 20,
+                                        borderRadius: 5,
+                                      ),
+                                      const SizedBox(height: 5),
+                                      const NeumorphicSkeleton(
+                                        width: 75,
+                                        height: 12,
+                                        borderRadius: 4,
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        checkInTimeDisplay,
+                                        style: TextStyle(
+                                          fontSize: 18 * fontScale,
+                                          fontWeight: FontWeight.w800,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        checkInStatusText,
+                                        style: TextStyle(
+                                          fontSize: 11 * fontScale,
+                                          fontWeight: FontWeight.w600,
+                                          color: checkInStatusColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                decoration: NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.logout_rounded,
+                                          size: 16,
+                                          color: Color(0xFF2C54D8),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Pulang',
+                                          style: TextStyle(
+                                            fontSize: 12 * fontScale,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.textMediumDark
+                                                : AppColors.textMedium,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    if (isTodayLoading) ...[
+                                      const NeumorphicSkeleton(
+                                        width: 65,
+                                        height: 20,
+                                        borderRadius: 5,
+                                      ),
+                                      const SizedBox(height: 5),
+                                      const NeumorphicSkeleton(
+                                        width: 75,
+                                        height: 12,
+                                        borderRadius: 4,
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        checkOutTimeDisplay,
+                                        style: TextStyle(
+                                          fontSize: 18 * fontScale,
+                                          fontWeight: FontWeight.w800,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        checkOutStatusText,
+                                        style: TextStyle(
+                                          fontSize: 11 * fontScale,
+                                          fontWeight: FontWeight.w600,
+                                          color: checkOutStatusColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  NeumorphicCard(
+                    borderRadius: 22,
+                    padding: const EdgeInsets.all(18),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const LeaveRequestDialog(),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            color: Color(0xFFF59E0B),
+                          ),
+                          child: const Icon(
+                            Icons.event_busy_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pengajuan Izin & Sakit',
+                                style: TextStyle(
+                                  fontSize: 15 * fontScale,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark
+                                      ? AppColors.textHighDark
+                                      : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Berhalangan hadir? Ajukan permohonan resmi di sini',
+                                style: TextStyle(
+                                  fontSize: 11.5 * fontScale,
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w500,
+                                  color: isDark
+                                      ? AppColors.textMediumDark
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: NeumorphicDecorations.extruded(
+                      isDark: isDark,
+                      borderRadius: 22,
+                    ),
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.bar_chart_rounded,
+                                  size: 20,
+                                  color: Color(0xFF2C54D8),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Statistik Kehadiran',
+                                  style: TextStyle(
+                                    fontSize: 16 * fontScale,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? AppColors.textHighDark
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            InkWell(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AttendanceStatsDetailScreen(),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                child: Text(
+                                  'Detail',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2C54D8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                  horizontal: 6,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Hadir',
+                                      style: TextStyle(
+                                        fontSize: 11.5 * fontScale,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF10B981),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    if (isDashboardLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: NeumorphicSkeleton(
+                                          width: 35,
+                                          height: 22,
+                                          borderRadius: 6,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        '$totalHadir',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$totalHadir Hari',
+                                      style: TextStyle(
+                                        fontSize: 10.5 * fontScale,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textMediumDark
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                decoration: NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                  horizontal: 6,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Terlambat',
+                                      style: TextStyle(
+                                        fontSize: 11.5 * fontScale,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFEA580C),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    if (isDashboardLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: NeumorphicSkeleton(
+                                          width: 35,
+                                          height: 22,
+                                          borderRadius: 6,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        '$totalTerlambat',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$totalTerlambat Hari',
+                                      style: TextStyle(
+                                        fontSize: 10.5 * fontScale,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textMediumDark
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                decoration: NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                  horizontal: 6,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Izin',
+                                      style: TextStyle(
+                                        fontSize: 11.5 * fontScale,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFF59E0B),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    if (isDashboardLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: NeumorphicSkeleton(
+                                          width: 35,
+                                          height: 22,
+                                          borderRadius: 6,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        '$totalIzin',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$totalIzin Hari',
+                                      style: TextStyle(
+                                        fontSize: 10.5 * fontScale,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textMediumDark
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                  horizontal: 10,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Jumlah Masuk',
+                                      style: TextStyle(
+                                        fontSize: 11.5 * fontScale,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? AppColors.textHighDark
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    if (isDashboardLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: NeumorphicSkeleton(
+                                          width: 44,
+                                          height: 22,
+                                          borderRadius: 6,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        '${stats.totalMasuk}',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Total Sesi Hadir',
+                                      style: TextStyle(
+                                        fontSize: 10.5 * fontScale,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textMediumDark
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Container(
+                                decoration: NeumorphicDecorations.extrudedSm(
+                                  isDark: isDark,
+                                  borderRadius: 16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                  horizontal: 10,
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Persentase Hadir',
+                                      style: TextStyle(
+                                        fontSize: 11.5 * fontScale,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? AppColors.textHighDark
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    if (isDashboardLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: NeumorphicSkeleton(
+                                          width: 55,
+                                          height: 22,
+                                          borderRadius: 6,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        '${stats.attendancePercentage.toStringAsFixed(1)}%',
+                                        style: TextStyle(
+                                          fontSize: 22 * fontScale,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark
+                                              ? AppColors.textHighDark
+                                              : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Kehadiran',
+                                      style: TextStyle(
+                                        fontSize: 10.5 * fontScale,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? AppColors.textMediumDark
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

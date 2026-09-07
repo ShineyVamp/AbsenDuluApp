@@ -1,24 +1,25 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:absendulu/core/constants/app_colors.dart';
+import 'package:absendulu/core/services/storage_service.dart';
 import 'package:absendulu/core/theme/neumorphic_decorations.dart';
 import 'package:absendulu/core/utils/date_formatter.dart';
 import 'package:absendulu/data/models/batch_model.dart';
 import 'package:absendulu/data/models/training_model.dart';
+import 'package:absendulu/data/models/user_model.dart';
 import 'package:absendulu/data/repositories/master_repository.dart';
 import 'package:absendulu/extensions/navigation.dart';
-import 'package:absendulu/presentation/screens/auth/login_screen.dart';
 import 'package:absendulu/presentation/providers/auth_provider.dart';
 import 'package:absendulu/presentation/providers/theme_provider.dart';
+import 'package:absendulu/presentation/screens/auth/forgot_password_dialog.dart';
+import 'package:absendulu/presentation/screens/auth/login_screen.dart';
+import 'package:absendulu/presentation/screens/profile/change_password_dialog.dart';
+import 'package:absendulu/presentation/screens/profile/edit_profile_dialog.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_button.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_card.dart';
 import 'package:absendulu/presentation/widgets/neumorphic_skeleton.dart';
-import 'package:absendulu/core/services/storage_service.dart';
-import 'package:absendulu/data/models/user_model.dart';
-import 'package:absendulu/presentation/screens/profile/edit_profile_dialog.dart';
-import 'package:absendulu/presentation/screens/profile/change_password_dialog.dart';
-import 'package:absendulu/presentation/screens/auth/forgot_password_dialog.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -83,10 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     try {
-      await Future.wait([
-        auth.fetchProfile(),
-        _fetchMasterData(),
-      ]);
+      await Future.wait([auth.fetchProfile(), _fetchMasterData()]);
     } catch (_) {
     } finally {
       if (mounted) {
@@ -161,7 +159,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         fit: BoxFit.cover,
         width: 96,
         height: 96,
-        errorBuilder: (context, error, stackTrace) => _buildAvatarFallback(name),
+        errorBuilder: (context, error, stackTrace) =>
+            _buildAvatarFallback(name),
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return const Center(
@@ -332,630 +331,642 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onRefresh: _loadAllData,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 26),
                   child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Stack(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 96,
+                              height: 96,
+                              decoration: NeumorphicDecorations.extruded(
+                                isDark: isDark,
+                                shape: BoxShape.circle,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(48),
+                                child: _buildAvatarImage(
+                                  user?.profilePhoto,
+                                  user?.profilePhotoUrl,
+                                  user?.name,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: InkWell(
+                                onTap: _openEditDialog,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        user?.name ?? 'Nama Siswa',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.textHighDark
+                              : AppColors.textHigh,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.email ?? 'nama@siswa.ppkd.id',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? AppColors.textMediumDark
+                              : AppColors.textMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            width: 96,
-                            height: 96,
-                            decoration: NeumorphicDecorations.extruded(
+                          Text(
+                            'Data Pribadi',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.textHighDark
+                                  : AppColors.textHigh,
+                            ),
+                          ),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: _openEditDialog,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.edit_note_rounded,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Ubah Data',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      NeumorphicCard(
+                        borderRadius: 16,
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(
+                              icon: Icons.person_outline_rounded,
+                              label: 'Nama Lengkap',
+                              value: user?.name ?? '-',
                               isDark: isDark,
-                              shape: BoxShape.circle,
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(48),
-                              child: _buildAvatarImage(
-                                user?.profilePhoto,
-                                user?.profilePhotoUrl,
-                                user?.name,
+                            _buildDivider(isDark),
+                            _buildInfoRow(
+                              icon: Icons.email_outlined,
+                              label: 'Email Akun',
+                              value: user?.email ?? '-',
+                              isDark: isDark,
+                            ),
+                            _buildDivider(isDark),
+                            _buildInfoRow(
+                              icon: Icons.wc_rounded,
+                              label: 'Jenis Kelamin',
+                              value: user?.jenisKelamin == 'P'
+                                  ? 'Perempuan'
+                                  : (user?.jenisKelamin == 'L'
+                                        ? 'Laki-laki'
+                                        : '-'),
+                              isDark: isDark,
+                            ),
+                            _buildDivider(isDark),
+                            _buildInfoRow(
+                              icon: Icons.calendar_today_rounded,
+                              label: 'Tanggal Terdaftar',
+                              value: _formatJoinDate(user?.createdAt, user),
+                              isDark: isDark,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Data Pelatihan PPKD',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.textHighDark
+                                  : AppColors.textHigh,
+                            ),
+                          ),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: _openEditDialog,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
                               ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: InkWell(
-                              onTap: _openEditDialog,
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt_rounded,
-                                  color: Colors.white,
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      user?.name ?? 'Nama Siswa',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: isDark
-                            ? AppColors.textHighDark
-                            : AppColors.textHigh,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user?.email ?? 'nama@siswa.ppkd.id',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDark
-                            ? AppColors.textMediumDark
-                            : AppColors.textMedium,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Data Pribadi',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? AppColors.textHighDark
-                                : AppColors.textHigh,
-                          ),
-                        ),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: _openEditDialog,
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.edit_note_rounded,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Ubah Data',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    NeumorphicCard(
-                      borderRadius: 16,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _buildInfoRow(
-                            icon: Icons.person_outline_rounded,
-                            label: 'Nama Lengkap',
-                            value: user?.name ?? '-',
-                            isDark: isDark,
-                          ),
-                          _buildDivider(isDark),
-                          _buildInfoRow(
-                            icon: Icons.email_outlined,
-                            label: 'Email Akun',
-                            value: user?.email ?? '-',
-                            isDark: isDark,
-                          ),
-                          _buildDivider(isDark),
-                          _buildInfoRow(
-                            icon: Icons.wc_rounded,
-                            label: 'Jenis Kelamin',
-                            value: user?.jenisKelamin == 'P'
-                                ? 'Perempuan'
-                                : (user?.jenisKelamin == 'L'
-                                      ? 'Laki-laki'
-                                      : '-'),
-                            isDark: isDark,
-                          ),
-                          _buildDivider(isDark),
-                          _buildInfoRow(
-                            icon: Icons.calendar_today_rounded,
-                            label: 'Tanggal Terdaftar',
-                            value: _formatJoinDate(user?.createdAt, user),
-                            isDark: isDark,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Data Pelatihan PPKD',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? AppColors.textHighDark
-                                : AppColors.textHigh,
-                          ),
-                        ),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: _openEditDialog,
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.edit_note_rounded,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Ubah Pelatihan',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    NeumorphicCard(
-                      borderRadius: 16,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _buildInfoRow(
-                            icon: Icons.school_outlined,
-                            label: 'Kejuruan Pelatihan',
-                            value: _getTrainingName(user?.trainingId, user),
-                            isDark: isDark,
-                          ),
-                          _buildDivider(isDark),
-                          _buildInfoRow(
-                            icon: Icons.groups_outlined,
-                            label: 'Batch / Angkatan',
-                            value: _getBatchName(user?.batchId, user),
-                            isDark: isDark,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Pengaturan Sistem',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: isDark
-                            ? AppColors.textHighDark
-                            : AppColors.textHigh,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    NeumorphicCard(
-                      borderRadius: 16,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    theme.isDarkMode
-                                        ? Icons.dark_mode_rounded
-                                        : Icons.light_mode_rounded,
+                                    Icons.edit_note_rounded,
                                     size: 18,
                                     color: AppColors.primary,
                                   ),
-                                  const SizedBox(width: 10),
+                                  SizedBox(width: 4),
                                   Text(
-                                    'Mode Tampilan Gelap',
+                                    'Ubah Pelatihan',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? AppColors.textHighDark
-                                          : AppColors.textHigh,
+                                      color: AppColors.primary,
                                     ),
                                   ),
                                 ],
                               ),
-                              Switch(
-                                value: theme.isDarkMode,
-                                activeThumbColor: AppColors.primary,
-                                onChanged: (val) => theme.toggleTheme(val),
-                              ),
-                            ],
-                          ),
-                          _buildDivider(isDark),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.access_time_filled_rounded,
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Jam Angka Romawi',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? AppColors.textHighDark
-                                          : AppColors.textHigh,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Switch(
-                                value: theme.isRomanClock,
-                                activeThumbColor: AppColors.primary,
-                                onChanged: (val) => theme.toggleRomanClock(val),
-                              ),
-                            ],
-                          ),
-                          _buildDivider(isDark),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => const ChangePasswordDialog(),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.vpn_key_rounded,
-                                        size: 18,
-                                        color: AppColors.primary,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        'Ganti Password',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : AppColors.textHigh,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right_rounded,
-                                    size: 20,
-                                    color: isDark
-                                        ? AppColors.textLowDark
-                                        : AppColors.textLow,
-                                  ),
-                                ],
-                              ),
                             ),
                           ),
-                          _buildDivider(isDark),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => ForgotPasswordDialog(
-                                  initialEmail: user?.email,
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.lock_reset_rounded,
-                                        size: 18,
-                                        color: AppColors.primary,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        'Lupa Password',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : AppColors.textHigh,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right_rounded,
-                                    size: 20,
-                                    color: isDark
-                                        ? AppColors.textLowDark
-                                        : AppColors.textLow,
-                                  ),
-                                ],
-                              ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      NeumorphicCard(
+                        borderRadius: 16,
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(
+                              icon: Icons.school_outlined,
+                              label: 'Kejuruan Pelatihan',
+                              value: _getTrainingName(user?.trainingId, user),
+                              isDark: isDark,
                             ),
-                          ),
-                          _buildDivider(isDark),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
+                            _buildDivider(isDark),
+                            _buildInfoRow(
+                              icon: Icons.groups_outlined,
+                              label: 'Batch / Angkatan',
+                              value: _getBatchName(user?.batchId, user),
+                              isDark: isDark,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Pengaturan Sistem',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.textHighDark
+                              : AppColors.textHigh,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      NeumorphicCard(
+                        borderRadius: 16,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(
-                                      Icons.info,
+                                    Icon(
+                                      theme.isDarkMode
+                                          ? Icons.dark_mode_rounded
+                                          : Icons.light_mode_rounded,
                                       size: 18,
                                       color: AppColors.primary,
                                     ),
                                     const SizedBox(width: 10),
                                     Text(
-                                      'Versi Aplikasi',
+                                      'Mode Tampilan Gelap',
                                       style: TextStyle(
                                         fontSize: 13,
+                                        fontWeight: FontWeight.w600,
                                         color: isDark
-                                            ? AppColors.textMediumDark
-                                            : AppColors.textMedium,
+                                            ? AppColors.textHighDark
+                                            : AppColors.textHigh,
                                       ),
                                     ),
                                   ],
                                 ),
-                                Text(
-                                  '1.0.0',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? AppColors.textHighDark
-                                        : AppColors.textHigh,
+                                Switch(
+                                  value: theme.isDarkMode,
+                                  activeThumbColor: AppColors.primary,
+                                  onChanged: (val) => theme.toggleTheme(val),
+                                ),
+                              ],
+                            ),
+                            _buildDivider(isDark),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.access_time_filled_rounded,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Jam Angka Romawi',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textHighDark
+                                            : AppColors.textHigh,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Switch(
+                                  value: theme.isRomanClock,
+                                  activeThumbColor: AppColors.primary,
+                                  onChanged: (val) =>
+                                      theme.toggleRomanClock(val),
+                                ),
+                              ],
+                            ),
+                            _buildDivider(isDark),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const ChangePasswordDialog(),
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.vpn_key_rounded,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          'Ganti Password',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : AppColors.textHigh,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 20,
+                                      color: isDark
+                                          ? AppColors.textLowDark
+                                          : AppColors.textLow,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            _buildDivider(isDark),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => ForgotPasswordDialog(
+                                    initialEmail: user?.email,
+                                  ),
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.lock_reset_rounded,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          'Lupa Password',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : AppColors.textHigh,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 20,
+                                      color: isDark
+                                          ? AppColors.textLowDark
+                                          : AppColors.textLow,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            _buildDivider(isDark),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.info,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Versi Aplikasi',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? AppColors.textMediumDark
+                                              : AppColors.textMedium,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    '1.0.0',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppColors.textHighDark
+                                          : AppColors.textHigh,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Pengingat Presensi',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.textHighDark
+                              : AppColors.textHigh,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      NeumorphicCard(
+                        borderRadius: 16,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.alarm_rounded,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Pengingat Masuk',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : AppColors.textHigh,
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () => _pickReminderTime(
+                                            isCheckIn: true,
+                                          ),
+                                          child: Text(
+                                            'Waktu: ${DateFormatter.formatTimeString(_reminderInTime, isRoman: theme.isRomanClock)} WIB',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Switch(
+                                  value: _reminderInEnabled,
+                                  activeThumbColor: AppColors.primary,
+                                  onChanged: (val) {
+                                    setState(() => _reminderInEnabled = val);
+                                    StorageService.setReminderCheckIn(val);
+                                  },
+                                ),
+                              ],
+                            ),
+                            _buildDivider(isDark),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.alarm_on_rounded,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Pengingat Pulang',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.textHighDark
+                                                : AppColors.textHigh,
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () => _pickReminderTime(
+                                            isCheckIn: false,
+                                          ),
+                                          child: Text(
+                                            'Waktu: ${DateFormatter.formatTimeString(_reminderOutTime, isRoman: theme.isRomanClock)} WIB',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Switch(
+                                  value: _reminderOutEnabled,
+                                  activeThumbColor: AppColors.primary,
+                                  onChanged: (val) {
+                                    setState(() => _reminderOutEnabled = val);
+                                    StorageService.setReminderCheckOut(val);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      NeumorphicButton(
+                        isPrimary: true,
+                        color: AppColors.danger,
+                        height: 50,
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (dCtx) => AlertDialog(
+                              title: const Text('Keluar dari Akun?'),
+                              content: const Text(
+                                'Anda perlu masuk kembali dengan email dan password untuk mengakses aplikasi.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => dCtx.pop(false),
+                                  child: const Text('Batal'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.danger,
+                                  ),
+                                  onPressed: () => dCtx.pop(true),
+                                  child: const Text(
+                                    'Keluar',
+                                    style: TextStyle(color: Colors.white),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Pengingat Presensi',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: isDark
-                            ? AppColors.textHighDark
-                            : AppColors.textHigh,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    NeumorphicCard(
-                      borderRadius: 16,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.alarm_rounded,
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Pengingat Masuk',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : AppColors.textHigh,
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: () => _pickReminderTime(isCheckIn: true),
-                                        child: Text(
-                                          'Waktu: ${DateFormatter.formatTimeString(_reminderInTime, isRoman: theme.isRomanClock)} WIB',
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              Switch(
-                                value: _reminderInEnabled,
-                                activeThumbColor: AppColors.primary,
-                                onChanged: (val) {
-                                  setState(() => _reminderInEnabled = val);
-                                  StorageService.setReminderCheckIn(val);
-                                },
-                              ),
-                            ],
-                          ),
-                          _buildDivider(isDark),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.alarm_on_rounded,
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Pengingat Pulang',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark
-                                              ? AppColors.textHighDark
-                                              : AppColors.textHigh,
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: () => _pickReminderTime(isCheckIn: false),
-                                        child: Text(
-                                          'Waktu: ${DateFormatter.formatTimeString(_reminderOutTime, isRoman: theme.isRomanClock)} WIB',
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              Switch(
-                                value: _reminderOutEnabled,
-                                activeThumbColor: AppColors.primary,
-                                onChanged: (val) {
-                                  setState(() => _reminderOutEnabled = val);
-                                  StorageService.setReminderCheckOut(val);
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    NeumorphicButton(
-                      isPrimary: true,
-                      color: AppColors.danger,
-                      height: 50,
-                      onPressed: () async {
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder: (dCtx) => AlertDialog(
-                            title: const Text('Keluar dari Akun?'),
-                            content: const Text(
-                              'Anda perlu masuk kembali dengan email dan password untuk mengakses aplikasi.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => dCtx.pop(false),
-                                child: const Text('Batal'),
-                              ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.danger,
-                                ),
-                                onPressed: () => dCtx.pop(true),
-                                child: const Text(
-                                  'Keluar',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
+                          );
 
-                        if (confirmed == true && context.mounted) {
-                          await auth.logout();
-                          if (context.mounted) {
-                            context.pushAndRemoveAll(const LoginScreen());
+                          if (confirmed == true && context.mounted) {
+                            await auth.logout();
+                            if (context.mounted) {
+                              context.pushAndRemoveAll(const LoginScreen());
+                            }
                           }
-                        }
-                      },
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.logout_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Keluar Akun',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.logout_rounded,
                               color: Colors.white,
+                              size: 18,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 8),
+                            Text(
+                              'Keluar Akun',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
-            ),
       ),
     );
   }

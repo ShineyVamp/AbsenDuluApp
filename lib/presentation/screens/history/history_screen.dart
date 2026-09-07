@@ -133,7 +133,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 onRefresh: () => history.loadHistory(),
                 color: AppColors.primary,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 26),
                   children: [
                     _buildHeatmap(context, history, isDark),
                     const SizedBox(height: 20),
